@@ -4,7 +4,7 @@ import { Truck, Smartphone, ShieldCheck, MapPin, Heart, PhoneCall, PackageCheck 
 export const Footer: React.FC = () => {
   return (
     <footer className="border-t border-border bg-card text-card-foreground transition-colors duration-500">
-      {/* Panamáa Logistics & Trust Banner */}
+      {/* Panamá Logistics & Trust Banner */}
       <div className="border-b border-border bg-sand/70 py-10 px-4 sm:px-6">
         <div className="mx-auto grid max-w-6xl grid-cols-1 sm:grid-cols-3 gap-8 text-center sm:text-left">
           {/* Item 1 */}
@@ -54,7 +54,7 @@ export const Footer: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Footer Links & Panamáa Info */}
+      {/* Main Footer Links & Panamá Info */}
       <div className="mx-auto max-w-6xl py-14 px-4 sm:px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {/* Brand Presentation */}

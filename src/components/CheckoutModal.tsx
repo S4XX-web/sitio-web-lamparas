@@ -16,12 +16,12 @@ import { useCart } from "../context/CartContext";
 import { toast } from "sonner";
 import { ShippingCarrier } from "../types/store";
 
-// Numero de WhatsApp oficial para recibir pedidos en Panamáa (codigo +507)
+// Numero de WhatsApp oficial para recibir pedidos en Panamá (codigo +507)
 const WHATSAPP_PHONE = "50769893055";
 
 const PROVINCES = [
-  "Panamáa (Ciudad / Centro / Este / Norte)",
-  "Panamáa Oeste (La Chorrera, Arraijan, Capira)",
+  "Panamá (Ciudad / Centro / Este / Norte)",
+  "Panamá Oeste (La Chorrera, Arraijan, Capira)",
   "Chiriqui (David, Boquete, Bugaba, Volcan)",
   "Cocle (Penonome, Aguadulce, Anton)",
   "Veraguas (Santiago, Sona)",
@@ -50,7 +50,7 @@ const CARRIERS: {
   },
   {
     id: "uno_express",
-    name: "Uno Express Panamáa",
+    name: "Uno Express Panamá",
     badge: "Red Nacional",
     time: "~1 dia habil (24h)",
     description: "Retiro con cedula en sucursal Uno Express o a domicilio",
@@ -58,7 +58,7 @@ const CARRIERS: {
   },
   {
     id: "servientrega",
-    name: "Servientrega Panamáa",
+    name: "Servientrega Panamá",
     badge: "Puerta a Puerta",
     time: "~1 dia habil (24h)",
     description: "Centros de soluciones y entregas a domicilio",
