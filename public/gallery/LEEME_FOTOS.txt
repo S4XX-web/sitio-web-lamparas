@@ -1,0 +1,7 @@
+Carpeta para fotos de Envíos e Instalaciones
+===================================================
+Coloca aquí las fotos que quieras mostrar en la web:
+- Fotos de paquetes / envíos (ej: envio-1.jpg, envio-2.jpg)
+- Fotos de instalaciones de clientes en casas/patios (ej: instalacion-1.jpg, instalacion-2.jpg)
+
+Luego en src/data/shipmentsInstallations.ts puedes vincular el nombre del archivo.

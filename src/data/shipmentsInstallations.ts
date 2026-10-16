@@ -1,0 +1,150 @@
+export interface ShowcaseItem {
+  id: string;
+  title: string;
+  category: "envio" | "instalacion";
+  mediaType: "image" | "video";
+  mediaUrl: string;
+  badge: string; // e.g. "Envío Exitoso" | "Instalación Exitosa"
+  location: string; // e.g. "Panamá • Encomienda Nacional"
+  carrierOrType: string;
+  description: string;
+  date?: string;
+}
+
+export const SHOWCASE_ITEMS: ShowcaseItem[] = [
+  // --- INSTALACIONES REALES (VIDEOS) ---
+  {
+    id: "inst-video-1",
+    title: "Iluminación en Finca y Senderos de Jardín",
+    category: "instalacion",
+    mediaType: "video",
+    mediaUrl: "/gallery/instalacion-video-finca.mp4",
+    badge: "Instalación Exitosa",
+    location: "Panamá • Jardín y Terraza Campestre",
+    carrierOrType: "Luminarias y Reflectores Solares",
+    description: "Recorrido real al anochecer mostrando cómo múltiples puntos solares iluminan los senderos, quincho exterior y plantas.",
+    date: "Video Real de Cliente",
+  },
+  {
+    id: "inst-video-2",
+    title: "Lámparas en Postes de Entrada y Parqueo",
+    category: "instalacion",
+    mediaType: "video",
+    mediaUrl: "/gallery/instalacion-video-postes.mp4",
+    badge: "Instalación Exitosa",
+    location: "Panamá • Acceso y Estacionamiento",
+    carrierOrType: "Postes de Alumbrado Autónomo",
+    description: "Iluminación potente y uniforme cubriendo el camino de entrada vehicular y estacionamiento sin cables.",
+    date: "Video Real de Cliente",
+  },
+  {
+    id: "inst-video-3",
+    title: "Alumbrado Nocturno en Muro Perimetral",
+    category: "instalacion",
+    mediaType: "video",
+    mediaUrl: "/gallery/instalacion-video-perimetro.mp4",
+    badge: "Instalación Exitosa",
+    location: "Panamá • Muros y Portón",
+    carrierOrType: "Seguridad Perimetral",
+    description: "Cobertura luminosa amplia en patio y cerca de seguridad, encendido 100% automático al anochecer.",
+    date: "Video Real de Cliente",
+  },
+
+  // --- ENVÍOS REALIZADOS (FOTOS REALES) ---
+  {
+    id: "env-foto-1",
+    title: "Paquete Preparado con Guía Oficial",
+    category: "envio",
+    mediaType: "image",
+    mediaUrl: "/gallery/envio-servientrega-paquete.jpg",
+    badge: "Envío Exitoso",
+    location: "Panamá • Encomienda Nacional",
+    carrierOrType: "Servientrega Panamá",
+    description: "Lámpara solar embalada con precinto de seguridad, rotulado de fragilidad y guía oficial de despacho.",
+    date: "Despacho Confirmado",
+  },
+  {
+    id: "env-foto-2",
+    title: "Lote Listo para Retiro de Encomiendas",
+    category: "envio",
+    mediaType: "image",
+    mediaUrl: "/gallery/envio-lote-preparado.jpg",
+    badge: "Envío Exitoso",
+    location: "Panamá • Provincias del Interior",
+    carrierOrType: "Transporte Ferguson / Uno Express",
+    description: "Múltiples paquetes protegidos con plástico negro anti-impacto, listos para la recogida del transporte.",
+    date: "Despacho Confirmado",
+  },
+  {
+    id: "env-foto-3",
+    title: "Control de Calidad Previo al Envío",
+    category: "envio",
+    mediaType: "image",
+    mediaUrl: "/gallery/inspeccion-calidad-lampara.jpg",
+    badge: "Calidad Inspeccionada",
+    location: "Panamá • Taller de Pruebas",
+    carrierOrType: "Lámpara Solar de Alta Potencia",
+    description: "Verificación del panel monocristalino y de los módulos LED antes de proceder al embalaje y despacho.",
+    date: "Inspección Verificada",
+  },
+  {
+    id: "env-foto-4",
+    title: "Caja Protegida con Film de Seguridad",
+    category: "envio",
+    mediaType: "image",
+    mediaUrl: "/gallery/envio-embalaje-protegido.jpg",
+    badge: "Envío Exitoso",
+    location: "Panamá • Despacho Seguro",
+    carrierOrType: "Embalaje Sellado",
+    description: "Protección integral contra lluvias tropicales y manipulación durante el traslado interprovincial.",
+    date: "Despacho Confirmado",
+  },
+  {
+    id: "env-foto-5",
+    title: "Pesaje y Registro en Báscula de Agencia",
+    category: "envio",
+    mediaType: "image",
+    mediaUrl: "/gallery/envio-balanza-despacho.jpg",
+    badge: "Envío Exitoso",
+    location: "Panamá • Destino Interior",
+    carrierOrType: "Agencia de Carga",
+    description: "Registro de peso y emisión de comprobante de encomienda antes de la salida del flete.",
+    date: "Despacho Confirmado",
+  },
+  {
+    id: "env-foto-6",
+    title: "Guía de Envío Generada en Sistema",
+    category: "envio",
+    mediaType: "image",
+    mediaUrl: "/gallery/envio-servientrega-guia.jpg",
+    badge: "Envío Exitoso",
+    location: "Panamá • Encomienda Express",
+    carrierOrType: "Servientrega Panamá",
+    description: "Código de seguimiento generado para que el cliente consulte el estado de su encomienda.",
+    date: "Despacho Confirmado",
+  },
+  {
+    id: "env-foto-7",
+    title: "Paquetes en Mostrador de Sucursal",
+    category: "envio",
+    mediaType: "image",
+    mediaUrl: "/gallery/envio-agencia-mostrador.jpg",
+    badge: "Envío Exitoso",
+    location: "Panamá • Retiro en Agencia",
+    carrierOrType: "Mostrador de Entrega",
+    description: "Cajas apiladas y rotuladas en sucursal listas para entrega directa al cliente con cédula.",
+    date: "Despacho Confirmado",
+  },
+  {
+    id: "env-foto-8",
+    title: "Caja Principal Rotulada para Envío",
+    category: "envio",
+    mediaType: "image",
+    mediaUrl: "/gallery/envio-caja-servientrega.jpg",
+    badge: "Envío Exitoso",
+    location: "Panamá • Encomienda Verificada",
+    carrierOrType: "Servientrega Panamá",
+    description: "Paquete sellado con cinta reforzada y datos de destinatario verificados en el sistema.",
+    date: "Despacho Confirmado",
+  },
+];
