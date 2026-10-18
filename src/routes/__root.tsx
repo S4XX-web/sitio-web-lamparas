@@ -45,7 +45,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    if (import.meta.env.DEV) {
+      reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    }
   }, [error]);
 
   return (
@@ -88,14 +90,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Transforma tu jardín, terraza y exteriores con lámparas solares autosustentables. Cero cables, 0$ en tu factura de luz, resistencia IP65 y envíos a todo Panamá en 24h.",
+          "Ilumina tu hogar, patio, comercio o finca con farolas y reflectores solares Rolinger en Panamá. Cero cables, $0 en tu factura de luz, resistencia IP66/IP67 y despachos a todo Panamá.",
       },
       { name: "author", content: "Solar y Hogar Panamá" },
-      { property: "og:title", content: "Solar y Hogar — Lámparas Solares de Alta Potencia" },
+      { property: "og:title", content: "Solar y Hogar — Lámparas Solares Rolinger en Panamá" },
       {
         property: "og:description",
         content:
-          "Ilumina tus noches con energía limpia y sin cables. Catálogo exclusivo de faroles, estacas de jardín y guirnaldas solares con envío a todo el país.",
+          "Farolas solares de calle de 1200W y 800W con sensor de radar y proyector solar de 300W IP67 con despachos a todo Panamá.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -1,15 +1,12 @@
 import React, { useState } from "react";
-import { Sun, Moon, Sparkles, BatteryCharging, Zap, Eye, Clock, ShieldCheck, Flame } from "lucide-react";
-import { useCart } from "../context/CartContext";
+import { Sun, Moon, Sparkles, BatteryCharging, Clock, Flame } from "lucide-react";
 
 export const DayNightSimulator: React.FC = () => {
-  const { nightMode } = useCart();
   // 0 = Full Noon, 50 = Sunset, 100 = Midnight
   const [timeValue, setTimeValue] = useState<number>(85);
 
   // Derived telemetry metrics
   const isNight = timeValue > 48;
-  const sunPosition = Math.sin((timeValue / 100) * Math.PI);
   const lampBrightness = Math.round(Math.max(0, (timeValue - 42) * 1.72));
   const chargeRate = Math.round(Math.max(0, (52 - timeValue) * 2.08));
   const lumensOutput = Math.round((lampBrightness / 100) * 1200);
@@ -28,7 +25,7 @@ export const DayNightSimulator: React.FC = () => {
         {/* Section Header */}
         <div className="text-center mb-12">
           <span className="glass-chip inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold text-solar-foreground shadow-sm">
-            <Sparkles className="h-3.5 w-3.5" />
+            <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
             Laboratorio Interactivo
           </span>
           <h2 className="mt-3 font-serif text-3xl font-bold text-foreground sm:text-4xl md:text-5xl tracking-tight">
@@ -76,14 +73,14 @@ export const DayNightSimulator: React.FC = () => {
           >
             {isNight ? (
               <div className="relative flex items-center justify-center">
-                <Moon className="h-14 w-14 text-amber-100 drop-shadow-[0_0_28px_rgba(254,243,199,0.8)]" />
+                <Moon aria-hidden="true" className="h-14 w-14 text-amber-100 drop-shadow-[0_0_28px_rgba(254,243,199,0.8)]" />
                 <span className="absolute mt-20 whitespace-nowrap rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] font-bold text-amber-200 backdrop-blur-md border border-white/10">
                   Modo Noche Activo
                 </span>
               </div>
             ) : (
               <div className="relative flex items-center justify-center">
-                <Sun className="h-16 w-16 text-amber-400 drop-shadow-[0_0_38px_rgba(251,191,36,0.95)]" />
+                <Sun aria-hidden="true" className="h-16 w-16 text-amber-400 drop-shadow-[0_0_38px_rgba(251,191,36,0.95)]" />
                 <span className="absolute mt-22 whitespace-nowrap rounded-full bg-white/80 px-2.5 py-0.5 text-[10px] font-bold text-amber-950 backdrop-blur-md shadow-sm">
                   Células Fotovoltaicas Cargando
                 </span>
@@ -91,11 +88,10 @@ export const DayNightSimulator: React.FC = () => {
             )}
           </div>
 
-          {/* Foreground Garden Terrace with Simulated Lamp Fixtures */}
-          <div className="relative z-10 mt-auto flex items-end justify-center gap-10 sm:gap-20 pb-4 pt-16">
-            {/* Lamp 1: Garden Stake */}
+          {/* Foreground Showcase with Simulated Lamp Fixtures */}
+          <div className="relative z-10 mt-auto flex items-end justify-center gap-6 sm:gap-20 pb-4 pt-16">
+            {/* Lamp 1: Farola 1200W */}
             <div className="relative flex flex-col items-center group">
-              {/* Warm Radial Light Bloom */}
               <div
                 className="absolute -top-14 h-48 w-48 rounded-full blur-3xl pointer-events-none transition-all duration-300"
                 style={{
@@ -105,18 +101,19 @@ export const DayNightSimulator: React.FC = () => {
               />
               <img
                 src="/products/lampara-1200w/image-1.jpg"
-                alt="Lámpara estaca de jardín iluminada"
+                alt="Farola LED Solar de Calle Rolinger 1200W"
+                loading="lazy"
                 className="h-32 w-32 sm:h-44 sm:w-44 rounded-2xl object-cover shadow-2xl border border-white/20 transition-all duration-300 group-hover:scale-102"
                 style={{
                   filter: `brightness(${0.55 + (lampBrightness / 100) * 0.55}) drop-shadow(0 0 ${lampBrightness * 0.28}px rgba(245, 158, 11, 0.85))`,
                 }}
               />
-              <span className="mt-2.5 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm">
-                Lámpara Solar 1200W (Radar)
+              <span className="mt-2.5 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
+                Farola Rolinger 1200W (Radar)
               </span>
             </div>
 
-            {/* Lamp 2: Architectural Wall Sconce */}
+            {/* Lamp 2: Proyector 300W */}
             <div className="relative flex flex-col items-center group">
               <div
                 className="absolute -top-14 h-48 w-48 rounded-full blur-3xl pointer-events-none transition-all duration-300"
@@ -127,14 +124,15 @@ export const DayNightSimulator: React.FC = () => {
               />
               <img
                 src="/products/reflector-solar/image-1.jpg"
-                alt="Farol solar de pared arquitectónico"
+                alt="Proyector LED Solar Rolinger 300W IP67"
+                loading="lazy"
                 className="h-32 w-32 sm:h-44 sm:w-44 rounded-2xl object-cover shadow-2xl border border-white/20 transition-all duration-300 group-hover:scale-102"
                 style={{
                   filter: `brightness(${0.55 + (lampBrightness / 100) * 0.55}) drop-shadow(0 0 ${lampBrightness * 0.28}px rgba(245, 158, 11, 0.85))`,
                 }}
               />
-              <span className="mt-2.5 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm">
-                Reflector Solar (Panel 5m)
+              <span className="mt-2.5 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
+                Proyector Rolinger 300W (IP67)
               </span>
             </div>
           </div>
@@ -143,7 +141,7 @@ export const DayNightSimulator: React.FC = () => {
           <div className="relative z-20 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-black/65 p-4 sm:p-5 backdrop-blur-xl border border-white/15 text-white shadow-xl">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-solar/20 text-solar">
-                <Clock className="h-5 w-5" />
+                <Clock aria-hidden="true" className="h-5 w-5" />
               </span>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-white/60">
@@ -155,19 +153,19 @@ export const DayNightSimulator: React.FC = () => {
 
             <div className="flex items-center gap-6 sm:gap-8">
               <div className="flex items-center gap-2.5">
-                <BatteryCharging className="h-5 w-5 text-emerald-400" />
+                <BatteryCharging aria-hidden="true" className="h-5 w-5 text-emerald-400" />
                 <div>
-                  <p className="text-[10px] text-white/60 uppercase">Carga Solar</p>
+                  <p className="text-[10px] text-white/60 uppercase">Captación Solar</p>
                   <p className="text-xs sm:text-sm font-extrabold text-emerald-400">{chargeRate}%</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5">
-                <Flame className="h-5 w-5 text-solar" />
+                <Flame aria-hidden="true" className="h-5 w-5 text-solar" />
                 <div>
-                  <p className="text-[10px] text-white/60 uppercase">Potencia Lumínica</p>
+                  <p className="text-[10px] text-white/60 uppercase">Brillo Nocturno</p>
                   <p className="text-xs sm:text-sm font-extrabold text-solar">
-                    {lampBrightness}% <span className="font-normal text-[11px] text-white/60">({lumensOutput} lm)</span>
+                    {lampBrightness}% <span className="font-normal text-[11px] text-white/60">({lumensOutput} W eq.)</span>
                   </p>
                 </div>
               </div>
@@ -179,11 +177,10 @@ export const DayNightSimulator: React.FC = () => {
         <div className="mt-6 rounded-3xl bg-card p-6 border border-border shadow-md">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
             <label htmlFor="time-slider" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <Sun className="h-4 w-4 text-solar" />
+              <Sun aria-hidden="true" className="h-4 w-4 text-solar" />
               Arrastra para cambiar la hora del día:
             </label>
 
-            {/* Presets with Emil Kowalski pressable physics */}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"

@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Farolas solares Rolinger de 1200W, 800W con sensor de radar y proyector de 300W IP67 en Panamá. Cero cables, 0$ en luz y envíos 24h por Ferguson, Uno Express y Servientrega.",
+          "Farolas solares Rolinger de 1200W y 800W con sensor de radar y proyector de 300W IP67 en Panamá. Cero cables, $0 en luz y despachos a todo Panamá por Ferguson, Uno Express y Servientrega.",
       },
     ],
   }),

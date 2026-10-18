@@ -2,7 +2,7 @@ export interface Product {
   id: string;
   name: string;
   tagline: string;
-  category: 'jardin' | 'pared' | 'decoracion' | 'potencia';
+  category: 'farolas' | 'reflector' | 'jardin' | 'pared' | 'decoracion' | 'potencia';
   price: number;
   originalPrice: number;
   rating: number;

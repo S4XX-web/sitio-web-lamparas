@@ -14,6 +14,10 @@ import { useCart } from "../context/CartContext";
 import { generateQuotationPDF } from "../utils/quotationPdf";
 import { toast } from "sonner";
 
+function sanitizeField(val: string, maxLen = 100): string {
+  return val.replace(/[<>]/g, "").trim().slice(0, maxLen);
+}
+
 export const QuotationModal: React.FC = () => {
   const { isQuotationOpen, setIsQuotationOpen, items, updateQuantity, total } = useCart();
 
@@ -36,7 +40,8 @@ export const QuotationModal: React.FC = () => {
       toast.error("Agrega al menos una lámpara al carrito para cotizar");
       return;
     }
-    if (!clientName.trim()) {
+    const cleanClient = sanitizeField(clientName, 80);
+    if (!cleanClient) {
       toast.error("Por favor ingresa el nombre del cliente o empresa");
       return;
     }
@@ -44,9 +49,9 @@ export const QuotationModal: React.FC = () => {
     try {
       setIsGenerating(true);
       await generateQuotationPDF({
-        clientName: clientName.trim(),
-        clientPhone: clientPhone.trim(),
-        sellerName: sellerName.trim(),
+        clientName: cleanClient,
+        clientPhone: sanitizeField(clientPhone, 30),
+        sellerName: sanitizeField(sellerName, 60) || "Mabel Hernández",
         items,
         quoteNumber,
       });
@@ -64,6 +69,10 @@ export const QuotationModal: React.FC = () => {
   };
 
   const handleSendWhatsApp = () => {
+    const cleanClient = sanitizeField(clientName, 80) || "Cliente Particular";
+    const cleanPhone = sanitizeField(clientPhone, 30);
+    const cleanSeller = sanitizeField(sellerName, 60) || "Mabel Hernández";
+
     const itemsList = items
       .map(
         (i) =>
@@ -73,23 +82,22 @@ export const QuotationModal: React.FC = () => {
       )
       .join("\n");
 
-    const message = `*SOLICITUD DE COTIZACIÓN OFICIAL - SOLAR Y HOGAR PANAMÁ*
-*Cotización No.:* ${quoteNumber}
+    const message = `*SOLICITUD DE COTIZACION OFICIAL - SOLAR Y HOGAR PANAMA*
+*Cotizacion No.:* ${quoteNumber}
 *Fecha:* ${todayFormatted}
-*Cliente / Empresa:* ${clientName || "Cliente Particular"}
-${clientPhone ? `*Teléfono:* ${clientPhone}\n` : ""}*Vendedor de Referencia:* ${sellerName}
+*Cliente / Empresa:* ${cleanClient}
+${cleanPhone ? `*Telefono:* ${cleanPhone}\n` : ""}*Vendedor de Referencia:* ${cleanSeller}
 ----------------------------------------
-*LÁMPARAS COTIZADAS*
+*LAMPARAS COTIZADAS*
 ${itemsList}
 
-*TOTAL ESTIMADO:* $${total.toFixed(2)} USD
+*SUBTOTAL ESTIMADO:* $${total.toFixed(2)} USD
 ----------------------------------------
-*Métodos de pago habilitados:*
-- Vía de pago: Yappy (Banco General)
-- Transferencia ACH (Banco General)
-- Cheques
+*Metodos de pago habilitados:*
+- Yappy (Banco General)
+- Transferencia Bancaria ACH (Banco General)
 
-Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su portal web. Quedo atento a su confirmación de disponibilidad y tiempos de despacho. Muchas gracias.`;
+Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su portal web. Quedo atento a su confirmacion de disponibilidad y coordinacion de envio. Muchas gracias.`;
 
     window.open(`https://wa.me/50769893055?text=${encodeURIComponent(message)}`, "_blank");
   };
@@ -104,7 +112,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-card">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-solar/15 text-solar">
-              <FileText className="h-5 w-5" />
+              <FileText aria-hidden="true" className="h-5 w-5" />
             </span>
             <div>
               <h2 className="font-serif text-base sm:text-lg font-bold text-foreground leading-tight">
@@ -130,7 +138,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
           <div className="lg:col-span-5 space-y-4">
             <div className="rounded-2xl border border-border bg-card p-4 space-y-3.5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <User className="h-4 w-4 text-solar" />
+                <User aria-hidden="true" className="h-4 w-4 text-solar" />
                 1. Datos del Cliente o Empresa
               </h3>
 
@@ -142,6 +150,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
                   <input
                     type="text"
                     required
+                    maxLength={80}
                     placeholder="Ej. Juan Pérez / Constructora del Istmo S.A."
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
@@ -157,6 +166,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
                 <div className="relative mt-1">
                   <input
                     type="text"
+                    maxLength={30}
                     placeholder="Ej. 6989-3055 / 260-0000"
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
@@ -172,6 +182,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
                 <div className="relative mt-1">
                   <input
                     type="text"
+                    maxLength={60}
                     value={sellerName}
                     onChange={(e) => setSellerName(e.target.value)}
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs text-foreground focus:border-solar focus:outline-none font-medium"
@@ -244,7 +255,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
                 disabled={isGenerating || items.length === 0}
                 className="w-full flex items-center justify-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-5 text-xs sm:text-sm font-extrabold shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
               >
-                <Download className="h-4 w-4" />
+                <Download aria-hidden="true" className="h-4 w-4" />
                 <span>{isGenerating ? "Generando PDF..." : "Descargar Cotización en PDF"}</span>
               </button>
 
@@ -253,7 +264,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
                 onClick={handleSendWhatsApp}
                 className="w-full flex items-center justify-center gap-2 rounded-full border border-emerald-600/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 py-2.5 px-4 text-xs font-bold transition-all cursor-pointer"
               >
-                <MessageCircle className="h-4 w-4" />
+                <MessageCircle aria-hidden="true" className="h-4 w-4" />
                 <span>Enviar Cotización a WhatsApp (6989-3055)</span>
               </button>
 
@@ -262,7 +273,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
                 onClick={handlePrint}
                 className="w-full flex items-center justify-center gap-2 rounded-full border border-border bg-secondary/80 hover:bg-secondary text-secondary-foreground py-2 px-4 text-xs font-semibold transition-all cursor-pointer"
               >
-                <Printer className="h-3.5 w-3.5" />
+                <Printer aria-hidden="true" className="h-3.5 w-3.5" />
                 <span>Imprimir / Guardar con el Navegador</span>
               </button>
             </div>
@@ -272,7 +283,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
           <div className="lg:col-span-7 flex flex-col items-center">
             <div className="w-full flex items-center justify-between mb-2 px-1 text-xs text-muted-foreground">
               <span className="font-semibold flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5 text-solar" />
+                <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
                 Vista Previa del Documento Oficial
               </span>
               <span>Formato Carta / A4</span>
@@ -283,37 +294,24 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
               id="quotation-print-sheet"
               className="relative w-full aspect-[1/1.414] bg-white text-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-200 p-6 sm:p-8 flex flex-col justify-between selection:bg-blue-100"
             >
-                            {/* TOP LEFT CORNER ACCENT SVG (Compact corner design - zero text overlap) */}
+              {/* TOP LEFT CORNER ACCENT SVG */}
               <div className="absolute top-0 left-0 w-20 sm:w-24 h-20 sm:h-24 pointer-events-none z-0">
                 <svg viewBox="0 0 100 100" className="w-full h-full" fill="none">
-                  <path
-                    d="M 0 0 L 65 0 C 40 22 18 42 0 68 Z"
-                    fill="#38567A"
-                  />
-                  <path
-                    d="M 0 0 L 48 0 C 28 15 12 30 0 48 Z"
-                    fill="#0F224A"
-                  />
+                  <path d="M 0 0 L 65 0 C 40 22 18 42 0 68 Z" fill="#38567A" />
+                  <path d="M 0 0 L 48 0 C 28 15 12 30 0 48 Z" fill="#0F224A" />
                 </svg>
               </div>
 
               {/* BOTTOM RIGHT WAVES SVG */}
               <div className="absolute bottom-0 right-0 w-44 sm:w-56 h-32 sm:h-40 pointer-events-none z-0">
                 <svg viewBox="0 0 250 150" className="w-full h-full" fill="none">
-                  <path
-                    d="M 0 150 C 70 80 160 50 250 80 L 250 150 Z"
-                    fill="#38567A"
-                  />
-                  <path
-                    d="M 0 150 C 70 110 150 80 250 110 L 250 150 Z"
-                    fill="#0F224A"
-                  />
+                  <path d="M 0 150 C 70 80 160 50 250 80 L 250 150 Z" fill="#38567A" />
+                  <path d="M 0 150 C 70 110 150 80 250 110 L 250 150 Z" fill="#0F224A" />
                 </svg>
               </div>
 
               {/* Sheet Header: Meta on Left, Seller Logo on Right */}
               <div className="relative z-10 flex justify-between items-start gap-4">
-                                {/* Meta details (100% clean white background with maximum contrast) */}
                 <div className="pt-4 sm:pt-6 pl-2 sm:pl-3 max-w-[58%]">
                   <h1 className="text-sm sm:text-base font-black text-slate-950 tracking-tight">
                     COTIZACIÓN OFICIAL
@@ -327,17 +325,17 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
 
                   <div className="mt-2 space-y-0.5">
                     <p className="text-[10px] sm:text-xs font-bold text-slate-900 truncate">
-                      Cliente: <span className="font-extrabold text-[#0F224A]">{clientName.trim() || "[Nombre del Cliente / Empresa]"}</span>
+                      Cliente: <span className="font-extrabold text-[#0F224A]">{sanitizeField(clientName, 80) || "[Nombre del Cliente / Empresa]"}</span>
                     </p>
                     {clientPhone.trim() && (
                       <p className="text-[9px] sm:text-[10px] text-slate-700 font-medium">
-                        Contacto: <span className="font-semibold text-slate-900">{clientPhone}</span>
+                        Contacto: <span className="font-semibold text-slate-900">{sanitizeField(clientPhone, 30)}</span>
                       </p>
                     )}
                   </div>
                 </div>
 
-                {/* Seller and Logo block (matching template) */}
+                {/* Seller and Logo block */}
                 <div className="flex flex-col items-center text-center">
                   <img
                     src="/logo-emblem.png"
@@ -350,16 +348,15 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
                   <div className="w-16 h-0.5 bg-[#2D6A4F] my-0.5" />
 
                   <span className="text-[11px] sm:text-xs font-serif text-[#0F224A] mt-1 block">
-                    vendedor
+                    Vendedor
                   </span>
                   <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 block">
-                    {sellerName}
+                    {sanitizeField(sellerName, 60) || "Mabel Hernández"}
                   </span>
 
                   <div className="text-[8px] sm:text-[9px] text-slate-600 text-left mt-2 space-y-0.5 leading-tight">
-                    <p>vía de pago: yappy</p>
-                    <p>transferencia: Banco General</p>
-                    <p>Cheques</p>
+                    <p>Vía de pago: Yappy</p>
+                    <p>Transferencia ACH: Banco General</p>
                   </div>
                 </div>
               </div>
@@ -394,14 +391,13 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
                       </tr>
                     ))}
 
-                    {/* Spacer row matching template */}
                     <tr className="bg-[#DDE6EE] h-3">
                       <td colSpan={4}></td>
                     </tr>
                   </tbody>
                 </table>
 
-                {/* Total Box (on the right half, matching template) */}
+                {/* Total Box */}
                 <div className="flex justify-end mt-3">
                   <div className="w-40 sm:w-48 bg-[#38567A] text-white flex items-center justify-between px-3 py-1.5 rounded shadow-sm">
                     <span className="text-[10px] sm:text-xs font-extrabold tracking-wider">
@@ -416,7 +412,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotización generada desde su po
 
               {/* Sheet Footer */}
               <div className="relative z-10 pt-2 text-center text-[8px] sm:text-[9px] text-slate-500">
-                Solar y Hogar Panamá • WhatsApp Servicio al Cliente: 6989-3055 • Encomiendas a todo el país
+                Solar y Hogar Panamá • WhatsApp Servicio al Cliente: 6989-3055 • Despachos a todo Panamá
               </div>
             </div>
           </div>

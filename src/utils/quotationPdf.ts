@@ -8,6 +8,14 @@ interface QuotationOptions {
   quoteNumber?: string;
 }
 
+function cleanPdfText(value: string, maxLen = 90): string {
+  // Strip control characters and HTML brackets before drawing to PDF
+  return value
+    .replace(/[\u0000-\u001F\u007F<>]/g, "")
+    .trim()
+    .slice(0, maxLen);
+}
+
 export async function generateQuotationPDF({
   clientName,
   clientPhone = "",
@@ -16,6 +24,11 @@ export async function generateQuotationPDF({
   quoteNumber = `COT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
 }: QuotationOptions): Promise<void> {
   const { jsPDF } = await import("jspdf");
+
+  const safeClientName = cleanPdfText(clientName, 80) || "Cliente Particular";
+  const safeClientPhone = cleanPdfText(clientPhone, 35);
+  const safeSellerName = cleanPdfText(sellerName, 60) || "Mabel Hernández";
+  const safeQuoteNumber = cleanPdfText(quoteNumber, 30);
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -26,8 +39,7 @@ export async function generateQuotationPDF({
   const pageWidth = 210;
   const pageHeight = 297;
 
-    // --- 1. Top-Left Wave Curves (Compact corner accent - ends before y=42mm) ---
-  // Secondary background wave (medium slate blue #38567A)
+  // --- 1. Top-Left Wave Curves ---
   doc.setFillColor(56, 86, 122);
   doc.moveTo(0, 0);
   doc.lineTo(36, 0);
@@ -35,7 +47,6 @@ export async function generateQuotationPDF({
   doc.lineTo(0, 0);
   doc.fill();
 
-  // Primary foreground wave (deep navy #0F224A)
   doc.setFillColor(15, 34, 74);
   doc.moveTo(0, 0);
   doc.lineTo(26, 0);
@@ -43,7 +54,6 @@ export async function generateQuotationPDF({
   doc.lineTo(0, 0);
   doc.fill();
 
-  // Primary foreground wave (deep navy #0F224A)
   doc.setFillColor(15, 34, 74);
   doc.moveTo(0, 0);
   doc.lineTo(36, 0);
@@ -51,8 +61,7 @@ export async function generateQuotationPDF({
   doc.lineTo(0, 0);
   doc.fill();
 
-  // --- 2. Bottom Wave Curves (Matching provided template) ---
-  // Secondary wave (slate blue #38567A)
+  // --- 2. Bottom Wave Curves ---
   doc.setFillColor(56, 86, 122);
   doc.moveTo(0, pageHeight);
   doc.curveTo(60, pageHeight - 35, 140, pageHeight - 55, pageWidth, pageHeight - 40);
@@ -60,7 +69,6 @@ export async function generateQuotationPDF({
   doc.lineTo(0, pageHeight);
   doc.fill();
 
-  // Primary wave (deep navy #0F224A)
   doc.setFillColor(15, 34, 74);
   doc.moveTo(0, pageHeight);
   doc.curveTo(50, pageHeight - 20, 120, pageHeight - 40, pageWidth, pageHeight - 25);
@@ -89,55 +97,49 @@ export async function generateQuotationPDF({
 
   const rightCenterX = logoX + logoW / 2;
 
-  // SOLAR Y HOGAR brand title
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.setTextColor(27, 67, 50); // Forest green
+  doc.setTextColor(27, 67, 50);
   doc.text("SOLAR Y HOGAR", rightCenterX, logoY + logoH + 4, { align: "center" });
 
-  // Underline
   doc.setDrawColor(45, 106, 79);
   doc.setLineWidth(0.4);
   doc.line(rightCenterX - 18, logoY + logoH + 5.5, rightCenterX + 18, logoY + logoH + 5.5);
 
-  // Vendedor title
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(13);
-  doc.setTextColor(15, 23, 42);
-  doc.text("vendedor", rightCenterX, logoY + logoH + 13, { align: "center" });
-
-  // Seller name
-  doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.setTextColor(40, 40, 40);
-  doc.text(sellerName, rightCenterX, logoY + logoH + 19, { align: "center" });
+  doc.setTextColor(15, 23, 42);
+  doc.text("Vendedor", rightCenterX, logoY + logoH + 12, { align: "center" });
 
-  // Payment methods
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(40, 40, 40);
+  doc.text(safeSellerName, rightCenterX, logoY + logoH + 18, { align: "center" });
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(75, 75, 75);
-  doc.text("vía de pago: yappy", rightCenterX - 18, logoY + logoH + 26);
-  doc.text("transferencia: Banco General", rightCenterX - 18, logoY + logoH + 30.5);
-  doc.text("Cheques", rightCenterX - 18, logoY + logoH + 35);
+  doc.text("Vía de pago: Yappy (Banco General)", rightCenterX - 22, logoY + logoH + 25);
+  doc.text("Transferencia ACH: Banco General", rightCenterX - 22, logoY + logoH + 29.5);
 
-  // --- 4. Customer & Quotation Meta (Left Side, 100% clean white background) ---
+  // --- 4. Customer & Quotation Meta ---
   const leftX = 22;
   let currentY = 52;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  doc.setTextColor(15, 23, 42); // Deep crisp navy
+  doc.setTextColor(15, 23, 42);
   doc.text("COTIZACIÓN OFICIAL", leftX, currentY);
 
   currentY += 6;
   doc.setFontSize(9.5);
-  doc.setTextColor(30, 58, 138); // Bold vivid blue #1E3A8A for quote number
-  doc.text(`No. ${quoteNumber}`, leftX, currentY);
+  doc.setTextColor(30, 58, 138);
+  doc.text(`No. ${safeQuoteNumber}`, leftX, currentY);
 
   currentY += 6;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(55, 65, 81); // Slate gray #374151 for crystal clear legibility
+  doc.setTextColor(55, 65, 81);
   const todayStr = new Date().toLocaleDateString("es-PA", {
     year: "numeric",
     month: "long",
@@ -149,14 +151,14 @@ export async function generateQuotationPDF({
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(`Cliente: ${clientName || "Cliente Particular"}`, leftX, currentY);
+  doc.text(`Cliente: ${safeClientName}`, leftX, currentY);
 
-  if (clientPhone.trim()) {
+  if (safeClientPhone) {
     currentY += 5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(90, 90, 90);
-    doc.text(`Contacto: ${clientPhone}`, leftX, currentY);
+    doc.text(`Contacto: ${safeClientPhone}`, leftX, currentY);
   }
 
   // --- 5. Table of Products ---
@@ -164,8 +166,7 @@ export async function generateQuotationPDF({
   const tableW = 170;
   let tableY = 96;
 
-  // Header Bar (Solid slate navy)
-  doc.setFillColor(56, 86, 122); // #38567A
+  doc.setFillColor(56, 86, 122);
   doc.rect(tableX, tableY, tableW, 9.5, "F");
 
   doc.setFont("helvetica", "bold");
@@ -184,7 +185,6 @@ export async function generateQuotationPDF({
     const rowH = 11;
     const isOdd = index % 2 === 0;
 
-    // Zebra stripe: soft light-blue #DDE6EE on odd rows
     if (isOdd) {
       doc.setFillColor(221, 230, 238);
       doc.rect(tableX, tableY, tableW, rowH, "F");
@@ -200,9 +200,8 @@ export async function generateQuotationPDF({
     doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
 
-    // Truncate long descriptions if needed
     const maxTextWidth = 75;
-    const desc = doc.splitTextToSize(item.product.name, maxTextWidth)[0];
+    const desc = doc.splitTextToSize(cleanPdfText(item.product.name, 90), maxTextWidth)[0];
     doc.text(desc, tableX + 5, tableY + 7);
 
     doc.setFont("helvetica", "bold");
@@ -214,13 +213,12 @@ export async function generateQuotationPDF({
     tableY += rowH;
   });
 
-  // Empty spacer bar row (matches the visual rhythm in template)
   tableY += 4;
   doc.setFillColor(221, 230, 238);
   doc.rect(tableX, tableY, tableW, 7, "F");
   tableY += 11;
 
-  // --- 6. Total Box (Right-aligned dark navy container) ---
+  // --- 6. Total Box ---
   const totalBoxW = 75;
   const totalBoxX = tableX + tableW - totalBoxW;
   const totalBoxH = 10.5;
@@ -241,14 +239,13 @@ export async function generateQuotationPDF({
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
   doc.text(
-    "Solar y Hogar Panamá • WhatsApp Servicio al Cliente: 6989-3055 • Despachos a todo el país",
+    "Solar y Hogar Panamá • WhatsApp Servicio al Cliente: 6989-3055 • Despachos a todo Panamá",
     pageWidth / 2,
     pageHeight - 12,
     { align: "center" }
   );
 
-  // Download PDF file
-  const sanitizedClient = (clientName || "Cliente")
+  const sanitizedClient = safeClientName
     .replace(/[^a-zA-Z0-9_\-]/g, "_")
     .substring(0, 25);
   doc.save(`Cotizacion_Solar_y_Hogar_${sanitizedClient}.pdf`);

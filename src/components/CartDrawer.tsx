@@ -1,18 +1,14 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   X,
   FileText,
   Trash2,
   ShoppingBag,
   ArrowRight,
-  Sparkles,
-  
-  ShieldCheck,
   MessageCircle,
   Truck,
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
-import { toast } from "sonner";
 
 export const CartDrawer: React.FC = () => {
   const {
@@ -23,12 +19,6 @@ export const CartDrawer: React.FC = () => {
     updateQuantity,
     total,
     subtotal,
-    
-    shipping,
-    
-    
-    
-    freeShippingThreshold,
     setIsCheckoutOpen,
     setIsQuotationOpen,
   } = useCart();
@@ -50,16 +40,13 @@ Hola equipo de Solar y Hogar, me gustaria pedir las siguientes lamparas solares:
 
 ${itemsList}
 
-*Total estimado:* $${total.toFixed(2)} USD
-*Transporte preferido:* Transporte Ferguson / Uno Express / Servientrega (~1 dia)
+*Subtotal de productos:* $${total.toFixed(2)} USD
+*Envio:* Transporte Ferguson / Uno Express (retiro en sucursal) o Servientrega (puerta a puerta o sucursal)
 
-Me confirman disponibilidad y los datos para coordinar el envio a mi provincia? Muchas gracias.`;
+Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.`;
 
     window.open(`https://wa.me/50769893055?text=${encodeURIComponent(message)}`, "_blank");
   };
-
-  const remainingForFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
-  const progressPercent = Math.min(100, (subtotal / freeShippingThreshold) * 100);
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -77,7 +64,7 @@ Me confirman disponibilidad y los datos para coordinar el envio a mi provincia? 
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border p-4 sm:p-5 bg-card">
             <div className="flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-solar" />
+              <ShoppingBag aria-hidden="true" className="h-5 w-5 text-solar" />
               <h2 className="font-serif text-lg font-bold text-foreground">Tu Carrito Solar y Hogar</h2>
               <span className="rounded-full bg-solar/20 px-2 py-0.5 text-xs font-bold text-solar-foreground">
                 {items.reduce((acc, i) => acc + i.quantity, 0)}
@@ -92,28 +79,14 @@ Me confirman disponibilidad y los datos para coordinar el envio a mi provincia? 
             </button>
           </div>
 
-          {/* Free Shipping Progress Indicator */}
+          {/* Nationwide Shipping Banner (Free Shipping Removed) */}
           <div className="border-b border-border bg-solar/10 p-3.5 text-xs text-foreground">
-            {remainingForFreeShipping > 0 ? (
-              <p className="flex items-center gap-1.5 font-medium">
-                <Sparkles className="h-4 w-4 text-solar shrink-0" />
-                <span>
-                  Agrega <strong>${remainingForFreeShipping.toFixed(2)}</strong> más para obtener{" "}
-                  <strong className="text-solar font-bold">Envío Gratis</strong>
-                </span>
-              </p>
-            ) : (
-              <p className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span>¡Felicidades! Calificas para Envío Gratis a todo Panamá </span>
-              </p>
-            )}
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
-              <div
-                className="h-full bg-solar transition-all duration-300 rounded-full"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+            <p className="flex items-start gap-2 font-medium leading-relaxed">
+              <Truck aria-hidden="true" className="h-4 w-4 text-solar shrink-0 mt-0.5" />
+              <span>
+                <strong className="text-solar font-bold">Despachos a todo Panamá:</strong> Retiro en sucursal (Ferguson / Uno Express / Servientrega) o entrega puerta a puerta (exclusivo con Servientrega).
+              </span>
+            </p>
           </div>
 
           {/* Cart Items List */}
@@ -121,11 +94,11 @@ Me confirman disponibilidad y los datos para coordinar el envio a mi provincia? 
             {items.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground py-12">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary mb-4">
-                  <ShoppingBag className="h-9 w-9 text-solar" />
+                  <ShoppingBag aria-hidden="true" className="h-9 w-9 text-solar" />
                 </div>
                 <h3 className="font-serif text-lg font-bold text-foreground">Tu carrito está vacío</h3>
                 <p className="mt-1 text-xs max-w-xs leading-relaxed">
-                  Descubre nuestra colección de lámparas solares ecológicas y dale luz a tu jardín.
+                  Descubre nuestra colección de lámparas solares autónomas y dale luz a tu propiedad sin cables.
                 </p>
                 <button
                   type="button"
@@ -191,22 +164,22 @@ Me confirman disponibilidad y los datos para coordinar el envio a mi provincia? 
             )}
           </div>
 
-          {/* Footer with Coupon and Checkout */}
+          {/* Footer with Checkout */}
           {items.length > 0 && (
             <div className="border-t border-border bg-card/60 p-4 sm:p-5 backdrop-blur-md space-y-4">
               {/* Price Breakdown */}
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal</span>
+                  <span>Subtotal de lámparas</span>
                   <span>${subtotal.toFixed(2)} USD</span>
                 </div>
-                
+
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Envío estimado</span>
-                  <span>{shipping === 0 ? "GRATIS" : `$${shipping.toFixed(2)}`}</span>
+                  <span>Costo de envío</span>
+                  <span>Según tarifa de encomienda</span>
                 </div>
                 <div className="flex justify-between text-base font-extrabold text-foreground pt-2 border-t border-border">
-                  <span>Total estimado</span>
+                  <span>Total en productos</span>
                   <span className="text-solar">${total.toFixed(2)} USD</span>
                 </div>
               </div>
@@ -222,7 +195,7 @@ Me confirman disponibilidad y los datos para coordinar el envio a mi provincia? 
                   className="w-full flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-lg hover:bg-primary/95 transition-all hover:scale-101 cursor-pointer"
                 >
                   <span>Generar Orden de Despacho</span>
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </button>
 
                 {/* BOTON OFICIAL DE GENERAR COTIZACION EN PDF */}
@@ -234,7 +207,7 @@ Me confirman disponibilidad y los datos para coordinar el envio a mi provincia? 
                   }}
                   className="w-full flex items-center justify-center gap-2 rounded-full border-2 border-primary/30 bg-card hover:bg-secondary text-foreground hover:border-solar px-5 py-2.5 text-xs font-bold shadow-sm transition-all hover:scale-101 cursor-pointer"
                 >
-                  <FileText className="h-4 w-4 text-solar" />
+                  <FileText aria-hidden="true" className="h-4 w-4 text-solar" />
                   <span>Generar Cotización en PDF</span>
                 </button>
 
@@ -243,17 +216,17 @@ Me confirman disponibilidad y los datos para coordinar el envio a mi provincia? 
                   onClick={handleWhatsAppCheckout}
                   className="w-full flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow hover:bg-emerald-700 transition-all cursor-pointer"
                 >
-                  <MessageCircle className="h-3.5 w-3.5" />
+                  <MessageCircle aria-hidden="true" className="h-3.5 w-3.5" />
                   <span>Consultar por WhatsApp al instante</span>
                 </button>
               </div>
 
               <div className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground pt-1 text-center">
                 <div className="flex items-center gap-1.5">
-                  <Truck className="h-3.5 w-3.5 text-solar" />
-                  <span>Envíos en ~1 día hábil vía Transporte Ferguson, Uno Express y Servientrega</span>
+                  <Truck aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+                  <span>Despachos a todo Panamá vía Ferguson, Uno Express y Servientrega</span>
                 </div>
-                <span>Pagos por Yappy (Banco General) o Transferencia ACH</span>
+                <span>Pagos por Yappy (Banco General) o Transferencia Bancaria ACH</span>
               </div>
             </div>
           )}

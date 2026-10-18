@@ -1,29 +1,19 @@
-# Welcome to your Lovable project
+# Solar y Hogar Panamá — Tienda Oficial de Luminarias Solares Rolinger
 
-This project was built with [Lovable](https://lovable.dev).
+Sitio web y catálogo interactivo de **Solar y Hogar Panamá**, desarrollado con **TanStack Start (SSR)**, **React 19**, **TypeScript** y **Tailwind CSS v4**, optimizado para despliegue serverless en **Netlify**.
 
-## Build with Lovable
+## Modelos en Catálogo
+- **Farola LED Solar de Calle Rolinger 1200W** (con sensor de radar inteligente e IP66)
+- **Farola LED Solar de Calle Rolinger 800W** (con sensor de radar inteligente e IP66)
+- **Proyector LED Solar Rolinger 300W (TYN-JBP-300W)** (con panel solar independiente e IP67)
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+## Desarrollo Local
+```bash
+npm install
 npm run dev
 ```
 
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+## Compilación para Producción (Netlify)
+```bash
+npm run build
+```

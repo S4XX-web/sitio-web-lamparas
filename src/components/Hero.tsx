@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Leaf, Sun, Zap, ArrowRight, Sparkles, Moon, Shield, Truck, ShoppingBag, Eye, MessageCircle, Layers, CheckCircle2 } from "lucide-react";
+import { Leaf, Sun, Zap, ArrowRight, Moon, Shield, Truck, ShoppingBag, Eye, MessageCircle, Layers } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { PRODUCTS } from "../data/products";
 import { Link } from "@tanstack/react-router";
@@ -9,18 +9,18 @@ export const Hero: React.FC = () => {
   const { nightMode, setNightMode, addItem } = useCart();
   const [selectedProductId, setSelectedProductId] = useState<string>("lampara-solar-1200w");
 
-  // Interactive 3D tilt state
+  // Interactive 3D tilt state (desktop only)
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (typeof window !== "undefined" && window.matchMedia("(hover: none)").matches) return;
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    // Max rotation 12deg
     const rotateX = ((y - centerY) / centerY) * -10;
     const rotateY = ((x - centerX) / centerX) * 10;
     setTilt({ x: rotateX, y: rotateY });
@@ -37,9 +37,9 @@ export const Hero: React.FC = () => {
 Hola equipo de Solar y Hogar, me interesa pedir la siguiente luminaria:
 - Producto: ${currentProduct.name}
 - Precio: $${currentProduct.price.toFixed(2)} USD
-- Envio: Transporte Ferguson / Uno Express / Servientrega (~1 dia habil)
+- Envio: Transporte Ferguson / Uno Express (sucursal) o Servientrega (puerta a puerta o sucursal)
 
-Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
+Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
     window.open(`https://wa.me/50769893055?text=${encodeURIComponent(message)}`, "_blank");
   };
 
@@ -78,7 +78,7 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
         {/* Top Badges & Tactile Lighting Switch */}
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-solar/95 px-3.5 py-1 text-xs font-bold text-solar-foreground shadow-sm backdrop-blur-md">
-            <Leaf className="h-3.5 w-3.5" />
+            <Leaf aria-hidden="true" className="h-3.5 w-3.5" />
             Luminarias Rolinger Oficiales • Panamá 2026
           </span>
 
@@ -90,12 +90,12 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
           >
             {nightMode ? (
               <>
-                <Moon className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
+                <Moon aria-hidden="true" className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
                 <span>Modo Noche (Iluminación Activa)</span>
               </>
             ) : (
               <>
-                <Sun className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                <Sun aria-hidden="true" className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
                 <span>Modo Día (Carga Fotovoltaica)</span>
               </>
             )}
@@ -111,7 +111,7 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
               <span className="relative inline-block text-solar">
                 sin cables ni recibos de luz
                 <svg
-                  aria-hidden
+                  aria-hidden="true"
                   className="absolute -bottom-2 left-0 w-full text-solar/40"
                   height="8"
                   viewBox="0 0 200 8"
@@ -128,8 +128,8 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
             </h1>
 
             <p className="mt-5 max-w-xl text-base sm:text-lg text-white/90 leading-relaxed font-normal">
-              Farolas de calle y proyectores solares con tecnología de radar inteligente y celdas fotovoltaicas de alta eficiencia. 
-              Instalación express en 3 minutos, encendido automático al anochecer y blindaje total contra aguaceros tropicales en Panamá.
+              Farolas de calle y proyectores solares con tecnología de radar inteligente y celdas fotovoltaicas de alta eficiencia.
+              Instalación práctica sin cableado eléctrico (incluye kit de fijación para montar con herramientas básicas), encendido automático al anochecer y resistencia contra lluvias tropicales en Panamá.
             </p>
 
             {/* Quick Action Links */}
@@ -139,22 +139,22 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
                 className="pressable inline-flex items-center gap-2.5 rounded-full bg-solar px-7 py-3.5 text-sm font-bold text-solar-foreground shadow-lg hover:bg-solar/95 cursor-pointer"
               >
                 <span>Explorar los 3 Modelos</span>
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </a>
 
               <a
                 href="#anatomia"
                 className="pressable inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/35 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-md hover:bg-black/50 cursor-pointer shadow-sm"
               >
-                <Layers className="h-4 w-4 text-solar" />
+                <Layers aria-hidden="true" className="h-4 w-4 text-solar" />
                 <span>Ver Cómo Está Hecha</span>
               </a>
             </div>
 
             {/* Logistics Fast Fact */}
             <div className="mt-6 flex items-center gap-2.5 text-xs text-white/80 font-mono">
-              <Truck className="h-4 w-4 text-solar shrink-0" />
-              <span>Despachos en 24h a todo Panamá por Ferguson, Uno Express y Servientrega</span>
+              <Truck aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
+              <span>Despachos a todo Panamá por Ferguson, Uno Express y Servientrega (única puerta a puerta)</span>
             </div>
           </div>
 
@@ -228,7 +228,7 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
                     </span>
                   </div>
                   <span className="text-[11px] font-bold text-emerald-400 bg-emerald-400/10 px-2.5 py-0.5 rounded-full">
-                    Despacho en 24h a todo Panamá
+                    Despachos a todo Panamá
                   </span>
                 </div>
 
@@ -239,7 +239,7 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
                     onClick={() => addItem(currentProduct, 1)}
                     className="pressable flex items-center justify-center gap-1.5 rounded-xl bg-solar py-2.5 px-3 text-xs font-bold text-solar-foreground shadow-md hover:bg-solar/95 cursor-pointer"
                   >
-                    <ShoppingBag className="h-4 w-4" />
+                    <ShoppingBag aria-hidden="true" className="h-4 w-4" />
                     <span>Añadir al Carrito</span>
                   </button>
 
@@ -248,7 +248,7 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
                     onClick={handleWhatsAppOrder}
                     className="pressable flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 px-3 text-xs font-bold text-white shadow-md cursor-pointer"
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <MessageCircle aria-hidden="true" className="h-4 w-4" />
                     <span>Pedir WhatsApp</span>
                   </button>
                 </div>
@@ -259,7 +259,7 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
                     params={{ productId: currentProduct.id }}
                     className="text-[11px] text-white/70 hover:text-solar underline font-mono inline-flex items-center gap-1"
                   >
-                    <Eye className="h-3 w-3" /> Ver todas las fotos y ficha completa
+                    <Eye aria-hidden="true" className="h-3 w-3" /> Ver todas las fotos y ficha completa
                   </Link>
                 </div>
               </div>
@@ -271,7 +271,7 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
         <div className="mt-12 grid w-full grid-cols-2 gap-3.5 sm:grid-cols-4 sm:gap-4 border-t border-white/15 pt-8">
           <div className="spring-card rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-md text-white">
             <div className="flex items-center gap-2 text-solar mb-1.5">
-              <Zap className="h-4 w-4" />
+              <Zap aria-hidden="true" className="h-4 w-4" />
               <span className="text-xl font-extrabold text-white font-serif">$0.00</span>
             </div>
             <p className="text-xs font-semibold text-white/90">Gasto en factura de luz</p>
@@ -280,28 +280,28 @@ Me confirman disponibilidad y datos para el envio? Muchas gracias.`;
 
           <div className="spring-card rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-md text-white">
             <div className="flex items-center gap-2 text-solar mb-1.5">
-              <Sun className="h-4 w-4" />
-              <span className="text-xl font-extrabold text-white font-serif">14 - 18 h</span>
+              <Sun aria-hidden="true" className="h-4 w-4" />
+              <span className="text-xl font-extrabold text-white font-serif">10 - 12 h</span>
             </div>
-            <p className="text-xs font-semibold text-white/90">Autonomía por noche</p>
-            <p className="text-[11px] text-white/60 mt-0.5">Baterías LiFePO4 de litio</p>
+            <p className="text-xs font-semibold text-white/90">Autonomía nocturna</p>
+            <p className="text-[11px] text-white/60 mt-0.5">6-8h en días nublados (modo radar)</p>
           </div>
 
           <div className="spring-card rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-md text-white">
             <div className="flex items-center gap-2 text-solar mb-1.5">
-              <Shield className="h-4 w-4" />
+              <Shield aria-hidden="true" className="h-4 w-4" />
               <span className="text-xl font-extrabold text-white font-serif">IP66 / IP67</span>
             </div>
-            <p className="text-xs font-semibold text-white/90">Protección Monzónica</p>
+            <p className="text-xs font-semibold text-white/90">Protección Climática</p>
             <p className="text-[11px] text-white/60 mt-0.5">Soporta lluvias y alta humedad</p>
           </div>
 
           <div className="spring-card rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-md text-white">
             <div className="flex items-center gap-2 text-solar mb-1.5">
-              <Truck className="h-4 w-4" />
-              <span className="text-xl font-extrabold text-white font-serif">24 Horas</span>
+              <Truck aria-hidden="true" className="h-4 w-4" />
+              <span className="text-xl font-extrabold text-white font-serif">Todo Panamá</span>
             </div>
-            <p className="text-xs font-semibold text-white/90">Envíos a todo Panamá</p>
+            <p className="text-xs font-semibold text-white/90">Despachos Nacionales</p>
             <p className="text-[11px] text-white/60 mt-0.5">Ferguson • Uno Express • Servientrega</p>
           </div>
         </div>

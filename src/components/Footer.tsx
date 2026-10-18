@@ -1,23 +1,23 @@
 import React from "react";
-import { Truck, Smartphone, ShieldCheck, MapPin, Heart, PhoneCall, PackageCheck } from "lucide-react";
+import { Truck, Smartphone, ShieldCheck, MapPin, Heart, PhoneCall } from "lucide-react";
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="border-t border-border bg-card text-card-foreground transition-colors duration-500">
+    <footer className="border-t border-border bg-card text-card-foreground transition-colors duration-500 pb-20 md:pb-0">
       {/* Panamá Logistics & Trust Banner */}
       <div className="border-b border-border bg-sand/70 py-10 px-4 sm:px-6">
         <div className="mx-auto grid max-w-6xl grid-cols-1 sm:grid-cols-3 gap-8 text-center sm:text-left">
           {/* Item 1 */}
           <div className="flex items-center justify-center sm:justify-start gap-3.5">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-solar/15 text-solar shrink-0">
-              <Truck className="h-6 w-6 text-amber-500" />
+              <Truck aria-hidden="true" className="h-6 w-6 text-amber-500" />
             </span>
             <div>
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                Despacho en 24h a todo Panamáá
+                Despacho a todo Panamá
               </h4>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Transporte Ferguson, Uno Express y Servientrega
+                Ferguson y Uno Express (Sucursal) • Servientrega (Puerta a Puerta)
               </p>
             </div>
           </div>
@@ -25,14 +25,14 @@ export const Footer: React.FC = () => {
           {/* Item 2 */}
           <div className="flex items-center justify-center sm:justify-start gap-3.5">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-              <Smartphone className="h-6 w-6" />
+              <Smartphone aria-hidden="true" className="h-6 w-6" />
             </span>
             <div>
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
                 Paga con Yappy o ACH
               </h4>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Banco General Yappy y Transferencias ACH
+                Banco General Yappy y Transferencias Bancarias ACH
               </p>
             </div>
           </div>
@@ -40,7 +40,7 @@ export const Footer: React.FC = () => {
           {/* Item 3 */}
           <div className="flex items-center justify-center sm:justify-start gap-3.5">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary shrink-0">
-              <ShieldCheck className="h-6 w-6" />
+              <ShieldCheck aria-hidden="true" className="h-6 w-6" />
             </span>
             <div>
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
@@ -72,17 +72,17 @@ export const Footer: React.FC = () => {
                   Solar y Hogar
                 </span>
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
-                  Panamáá • Iluminación Solar Inteligente
+                  Panamá • Iluminación Solar Inteligente
                 </span>
               </div>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              Especialistas en iluminación solar exterior residencial y comercial en Panamáá.
-              Cero cables, 0$ en tu factura de luz y encendido automático al anochecer.
+              Especialistas en iluminación solar exterior residencial y comercial en Panamá.
+              Cero cables, $0 en tu factura de luz y encendido automático al anochecer.
             </p>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 text-solar" />
-              <span>Ciudad de Panamáá • Envíos a todas las provincias</span>
+              <MapPin aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+              <span>Panamá • Cobertura de envíos a nivel nacional</span>
             </div>
           </div>
 
@@ -95,6 +95,11 @@ export const Footer: React.FC = () => {
               <li>
                 <a href="/#catalogo" className="hover:text-solar transition-colors">
                   Catálogo Oficial 2026
+                </a>
+              </li>
+              <li>
+                <a href="/#anatomia" className="hover:text-solar transition-colors">
+                  Cómo Está Hecha (Anatomía)
                 </a>
               </li>
               <li>
@@ -126,7 +131,7 @@ export const Footer: React.FC = () => {
               Envíos y Asesoría
             </h5>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              Enviamos diariamente por Transporte Ferguson, Uno Express y Servientrega a David, Santiago, Chitréé, Penonoméé, Colón y todo el interior.
+              Realizamos despachos a todo Panamá mediante Transporte Ferguson y Uno Express (para retiro en sucursal) y Servientrega Panamá (única agencia con entrega puerta a puerta además de retiro en sucursal).
             </p>
             <a
               href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20quisiera%20asesoria%20sobre%20las%20lamparas%20solares"
@@ -134,7 +139,7 @@ export const Footer: React.FC = () => {
               rel="noopener noreferrer"
               className="pressable inline-flex items-center gap-2 rounded-xl bg-secondary border border-border px-4 py-2.5 text-xs font-bold text-foreground hover:border-solar/60 transition-colors"
             >
-              <PhoneCall className="h-3.5 w-3.5 text-emerald-500" />
+              <PhoneCall aria-hidden="true" className="h-3.5 w-3.5 text-emerald-500" />
               <span>WhatsApp Servicio al Cliente: 6989-3055</span>
             </a>
           </div>
@@ -142,10 +147,10 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-6 border-t border-border/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-muted-foreground">
-          <p>© {new Date().getFullYear()} Solar y Hogar Panamáá. Todos los derechos reservados.</p>
+          <p>© {new Date().getFullYear()} Solar y Hogar Panamá. Todos los derechos reservados.</p>
           <p className="flex items-center gap-1">
             <span>Iluminando noches con energía limpia</span>
-            <Heart className="h-3 w-3 text-solar fill-solar" />
+            <Heart aria-hidden="true" className="h-3 w-3 text-solar fill-solar" />
           </p>
         </div>
       </div>

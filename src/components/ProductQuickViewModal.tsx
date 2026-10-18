@@ -3,7 +3,7 @@ import { X, Star, ShoppingBag, ShieldCheck, Zap, BatteryCharging, Check, Message
 import { useCart } from "../context/CartContext";
 
 export const ProductQuickViewModal: React.FC = () => {
-  const { quickViewProduct, setQuickViewProduct, addItem, setIsCartOpen } = useCart();
+  const { quickViewProduct, setQuickViewProduct, addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
 
   if (!quickViewProduct) return null;
@@ -13,15 +13,15 @@ export const ProductQuickViewModal: React.FC = () => {
     setQuickViewProduct(null);
   };
 
-    const handleWhatsAppInstant = () => {
+  const handleWhatsAppInstant = () => {
     const message = `*CONSULTA DE LAMPARA - SOLAR Y HOGAR PANAMA*
 Hola equipo de Solar y Hogar, me gustaria ordenar directamente la siguiente lampara:
 - Modelo: ${quickViewProduct.name}
 - Cantidad: ${quantity} unidad(es)
-- Total: $${(quickViewProduct.price * quantity).toFixed(2)} USD
-- Envio: Transporte Ferguson / Uno Express / Servientrega (~1 dia habil)
+- Subtotal: $${(quickViewProduct.price * quantity).toFixed(2)} USD
+- Envio: Transporte Ferguson / Uno Express (sucursal) o Servientrega (puerta a puerta o sucursal)
 
-Me confirman disponibilidad para despacho hoy? Muchas gracias.`;
+Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
     window.open(`https://wa.me/50769893055?text=${encodeURIComponent(message)}`, "_blank");
   };
 
@@ -58,15 +58,15 @@ Me confirman disponibilidad para despacho hoy? Muchas gracias.`;
             {/* Quick specs chips */}
             <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2 text-xs text-white">
               <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2.5 py-1">
-                <Zap className="h-3.5 w-3.5 text-solar" />
+                <Zap aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
                 {quickViewProduct.lumens}
               </span>
               <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2.5 py-1">
-                <BatteryCharging className="h-3.5 w-3.5 text-emerald-400" />
+                <BatteryCharging aria-hidden="true" className="h-3.5 w-3.5 text-emerald-400" />
                 {quickViewProduct.batteryLife}
               </span>
               <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2.5 py-1">
-                <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
+                <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-blue-400" />
                 {quickViewProduct.waterproof}
               </span>
             </div>
@@ -78,11 +78,11 @@ Me confirman disponibilidad para despacho hoy? Muchas gracias.`;
               {/* Rating */}
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
                 <div className="flex items-center text-amber-500">
-                  <Star className="h-4 w-4 fill-amber-400" />
-                  <Star className="h-4 w-4 fill-amber-400" />
-                  <Star className="h-4 w-4 fill-amber-400" />
-                  <Star className="h-4 w-4 fill-amber-400" />
-                  <Star className="h-4 w-4 fill-amber-400" />
+                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
+                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
+                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
+                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
+                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
                 </div>
                 <span className="font-bold text-foreground">{quickViewProduct.rating}</span>
                 <span>({quickViewProduct.reviewsCount} opiniones verificadas)</span>
@@ -116,7 +116,7 @@ Me confirman disponibilidad para despacho hoy? Muchas gracias.`;
                 </p>
                 {quickViewProduct.features.map((feat, idx) => (
                   <div key={idx} className="flex items-start gap-2 text-xs text-foreground/80">
-                    <Check className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                    <Check aria-hidden="true" className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
                     <span>{feat}</span>
                   </div>
                 ))}
@@ -152,7 +152,7 @@ Me confirman disponibilidad para despacho hoy? Muchas gracias.`;
                   onClick={handleAddToCart}
                   className="flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-xs font-bold text-primary-foreground shadow hover:bg-primary/90 transition-all hover:scale-102"
                 >
-                  <ShoppingBag className="h-4 w-4" />
+                  <ShoppingBag aria-hidden="true" className="h-4 w-4" />
                   <span>Añadir al Carrito</span>
                 </button>
 
@@ -161,13 +161,13 @@ Me confirman disponibilidad para despacho hoy? Muchas gracias.`;
                   onClick={handleWhatsAppInstant}
                   className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-xs font-bold text-white shadow hover:bg-emerald-700 transition-all hover:scale-102"
                 >
-                  <MessageCircle className="h-4 w-4" />
+                  <MessageCircle aria-hidden="true" className="h-4 w-4" />
                   <span>Pedir por WhatsApp</span>
                 </button>
               </div>
 
               <p className="text-center text-[10px] text-muted-foreground">
-                Garantía de calidad • Envíos en ~1 día hábil a todo Panamá
+                Garantía de calidad • Despachos a todo Panamá
               </p>
             </div>
           </div>

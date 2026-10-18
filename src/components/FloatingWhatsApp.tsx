@@ -5,7 +5,7 @@ export const FloatingWhatsApp: React.FC = () => {
   const [showTooltip, setShowTooltip] = useState(true);
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3">
+    <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex items-center gap-3">
       {/* Tooltip message */}
       {showTooltip && (
         <div className="hidden sm:flex items-center gap-2 rounded-2xl bg-card border border-border p-3 shadow-xl animate-in fade-in slide-in-from-right duration-300">
@@ -28,10 +28,10 @@ export const FloatingWhatsApp: React.FC = () => {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Contactar servicio al cliente por WhatsApp 6989-3055"
-        className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:bg-emerald-600"
+        className="group relative flex h-13 w-13 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:bg-emerald-600"
       >
         <span className="absolute -inset-1 rounded-full bg-emerald-500/40 animate-ping pointer-events-none opacity-75" />
-        <MessageCircle className="h-7 w-7 transition-transform group-hover:rotate-12" />
+        <MessageCircle aria-hidden="true" className="h-6 w-6 sm:h-7 sm:w-7 transition-transform group-hover:rotate-12" />
       </a>
     </div>
   );

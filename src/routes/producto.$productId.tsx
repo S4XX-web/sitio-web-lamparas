@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Star,
   ShoppingBag,
   Zap,
   BatteryCharging,
   Shield,
-  Truck,
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
@@ -15,14 +14,13 @@ import {
   Moon,
   Sparkles,
   CheckCircle2,
-  Share2,
+  Wrench,
 } from "lucide-react";
 import { PRODUCTS } from "../data/products";
 import { useCart } from "../context/CartContext";
 import { PromoBanner } from "../components/PromoBanner";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
-import { toast } from "sonner";
 import { ProductCard } from "../components/ProductCard";
 
 export const Route = createFileRoute("/producto/$productId")({
@@ -37,7 +35,7 @@ export const Route = createFileRoute("/producto/$productId")({
         },
         {
           name: "description",
-          content: product?.tagline || "Lámparas solares de alta gama en Panamá",
+          content: product?.tagline || "Lámparas solares de alta potencia en Panamá con despacho a nivel nacional.",
         },
       ],
     };
@@ -62,7 +60,7 @@ function ProductDetailPage() {
             to="/"
             className="pressable inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
             Volver al catálogo
           </Link>
         </div>
@@ -74,7 +72,6 @@ function ProductDetailPage() {
   const { addItem, nightMode, setNightMode, setIsCartOpen } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [copiedLink, setCopiedLink] = useState(false);
 
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
 
@@ -91,15 +88,6 @@ function ProductDetailPage() {
     setIsCartOpen(true);
   };
 
-  const handleShare = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      setCopiedLink(true);
-      toast.success("¡Enlace del producto copiado!");
-      setTimeout(() => setCopiedLink(false), 2500);
-    }
-  };
-
   const handleWhatsAppOrder = () => {
     const totalLine = (product.price * quantity).toFixed(2);
     const message = `*CONSULTA DE PEDIDO - SOLAR Y HOGAR PANAMA*
@@ -107,15 +95,13 @@ Hola equipo de Solar y Hogar, me gustaria pedir el siguiente producto:
 - Producto: ${product.name}
 - Cantidad: ${quantity} unidad(es)
 - Precio unitario: $${product.price.toFixed(2)} USD
-- Total: $${totalLine} USD
-- Envio: Transporte Ferguson / Uno Express / Servientrega (~1 dia habil)
+- Subtotal: $${totalLine} USD
+- Envio: Transporte Ferguson / Uno Express (sucursal) o Servientrega (puerta a puerta o sucursal)
 
 Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`;
 
     window.open(`https://wa.me/50769893055?text=${encodeURIComponent(message)}`, "_blank");
   };
-
-  // Sin ofertas temporales
 
   const relatedProducts = PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3);
 
@@ -153,7 +139,6 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                 className="h-full w-full object-cover transition-all duration-500 ease-out"
               />
 
-              {/* Day / Night Ambience Glow Overlay if in Night Mode */}
               {nightMode && (
                 <div className="absolute inset-0 bg-amber-500/10 pointer-events-none mix-blend-color-dodge transition-opacity duration-700" />
               )}
@@ -165,7 +150,9 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                     {product.badge}
                   </span>
                 )}
-                <span className="rounded-full bg-emerald-600/90 px-3 py-0.5 text-xs font-bold text-white shadow-md self-start">Disponible</span>
+                <span className="rounded-full bg-emerald-600/90 px-3 py-0.5 text-xs font-bold text-white shadow-md self-start">
+                  Disponible
+                </span>
               </div>
 
               {/* Night View Preview Button */}
@@ -177,18 +164,18 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
               >
                 {nightMode ? (
                   <>
-                    <Sun className="h-3.5 w-3.5 text-solar" />
+                    <Sun aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
                     <span>Luz Diurna</span>
                   </>
                 ) : (
                   <>
-                    <Moon className="h-3.5 w-3.5 text-solar" />
+                    <Moon aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
                     <span>Simular Encendida</span>
                   </>
                 )}
               </button>
 
-              {/* Prev / Next Carousel Controls (if multiple images) */}
+              {/* Prev / Next Carousel Controls */}
               {images.length > 1 && (
                 <>
                   <button
@@ -230,7 +217,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                         : "border-border opacity-70 hover:opacity-100"
                     }`}
                   >
-                    <img src={img} alt={`Miniatura ${idx + 1}`} className="h-full w-full object-cover" />
+                    <img src={img} alt={`Miniatura ${idx + 1} de ${product.name}`} className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -244,7 +231,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    <Star key={i} aria-hidden="true" className="h-4 w-4 fill-amber-400 text-amber-400" />
                   ))}
                 </div>
                 <span className="font-bold text-foreground">{product.rating.toFixed(1)}</span>
@@ -267,7 +254,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                   ${product.price.toFixed(2)} USD
                 </span>
                 <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1 text-xs font-bold">
-                  Precio Directo de Fábrica
+                  Despachos a todo Panamá
                 </span>
               </div>
             </div>
@@ -298,7 +285,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                   onClick={handleAddToCart}
                   className="pressable flex-1 flex items-center justify-center gap-2.5 rounded-full bg-primary hover:bg-primary/95 text-primary-foreground py-3.5 px-6 font-bold text-sm sm:text-base shadow-lg cursor-pointer"
                 >
-                  <ShoppingBag className="h-5 w-5" />
+                  <ShoppingBag aria-hidden="true" className="h-5 w-5" />
                   <span>Añadir al Carrito</span>
                 </button>
               </div>
@@ -309,7 +296,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                 onClick={handleWhatsAppOrder}
                 className="pressable w-full flex items-center justify-center gap-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-6 font-bold text-sm shadow-md cursor-pointer"
               >
-                <MessageCircle className="h-5 w-5" />
+                <MessageCircle aria-hidden="true" className="h-5 w-5" />
                 <span>Pedir este Modelo por WhatsApp</span>
               </button>
             </div>
@@ -317,12 +304,16 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
             {/* Payment & Guarantees Badges */}
             <div className="rounded-2xl border border-border bg-sand/40 p-4 space-y-2 text-xs">
               <div className="flex items-center gap-2 text-foreground font-semibold">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Pago flexible: Yappy (Banco General), ACH o al retirar en agencia</span>
+                <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Pago seguro: Yappy (Banco General) o transferencia bancaria ACH</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Shield className="h-4 w-4 text-solar" />
-                <span>Garantía de calidad: Producto probado antes del despacho</span>
+                <Wrench aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
+                <span>Instalación práctica sin cables (incluye tornillería; requiere herramientas básicas)</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Shield aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
+                <span>Envíos por Ferguson y Uno Express (sucursal) o Servientrega (puerta a puerta)</span>
               </div>
             </div>
 
@@ -330,7 +321,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Zap className="h-4 w-4 text-solar" />
+                  <Zap aria-hidden="true" className="h-4 w-4 text-solar" />
                   Luminosidad
                 </span>
                 <span className="font-bold text-foreground text-sm font-mono">{product.lumens}</span>
@@ -338,7 +329,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
 
               <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <BatteryCharging className="h-4 w-4 text-emerald-500" />
+                  <BatteryCharging aria-hidden="true" className="h-4 w-4 text-emerald-500" />
                   Autonomía
                 </span>
                 <span className="font-bold text-foreground text-sm font-mono">{product.batteryLife}</span>
@@ -346,7 +337,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
 
               <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Shield className="h-4 w-4 text-primary" />
+                  <Shield aria-hidden="true" className="h-4 w-4 text-primary" />
                   Resistencia
                 </span>
                 <span className="font-bold text-foreground text-sm font-mono">{product.waterproof}</span>
@@ -354,10 +345,10 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
 
               <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Sun className="h-4 w-4 text-amber-500" />
-                  Carga Solar
+                  <Sun aria-hidden="true" className="h-4 w-4 text-amber-500" />
+                  Días Nublados
                 </span>
-                <span className="font-bold text-foreground text-sm">6h de sol directo</span>
+                <span className="font-bold text-foreground text-sm">40-60% carga (6-8h)</span>
               </div>
             </div>
           </div>
@@ -379,7 +370,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
             <ul className="space-y-2.5">
               {product.features.map((f, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-sm text-foreground">
-                  <Sparkles className="h-4 w-4 text-solar shrink-0 mt-0.5" />
+                  <Sparkles aria-hidden="true" className="h-4 w-4 text-solar shrink-0 mt-0.5" />
                   <span>{f}</span>
                 </li>
               ))}
@@ -395,7 +386,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                 Otras lámparas que te pueden gustar
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Completa la iluminación exterior de tu terraza o jardín
+                Completa la iluminación exterior de tu propiedad
               </p>
             </div>
             <Link
@@ -403,7 +394,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
               className="pressable text-xs font-bold text-solar hover:underline flex items-center gap-1"
             >
               <span>Ver catálogo completo</span>
-              <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+              <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5 rotate-180" />
             </Link>
           </div>
 

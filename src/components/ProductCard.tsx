@@ -25,7 +25,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         >
           <img
             src={images[currentImgIndex]}
-            alt={`${product.name} - Imagen ${currentImgIndex + 1}`}
+            alt={`${product.name} - Vista ${currentImgIndex + 1}`}
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             loading="lazy"
           />
@@ -64,7 +64,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 className={`h-1.5 rounded-full transition-all cursor-pointer ${
                   currentImgIndex === idx ? "w-4 bg-solar" : "w-1.5 bg-white/50 hover:bg-white"
                 }`}
-                aria-label={`Ver imagen ${idx + 1}`}
+                aria-label={`Ver imagen ${idx + 1} de ${product.name}`}
               />
             ))}
           </div>
@@ -74,11 +74,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <Link
           to="/producto/$productId"
           params={{ productId: product.id }}
-          aria-label={`Ver p\u00e1gina completa de ${product.name}`}
+          aria-label={`Ver página completa de ${product.name}`}
           className="pressable absolute bottom-3 right-3 flex h-8.5 w-8.5 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-solar hover:text-solar-foreground shadow-md cursor-pointer transition-colors z-10"
-          title="Ver p\u00e1gina con carrusel y especificaciones completas"
+          title="Ver página con galería y especificaciones completas"
         >
-          <ArrowUpRight className="h-4 w-4" />
+          <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
         </Link>
       </div>
 
@@ -88,24 +88,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {/* Quick Specs Badges */}
           <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[10px] font-semibold">
             <span className="inline-flex items-center gap-1 rounded-md bg-solar/15 text-solar px-2 py-0.5 font-mono">
-              <Zap className="h-3 w-3" />
+              <Zap aria-hidden="true" className="h-3 w-3" />
               {product.lumens}
             </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 font-mono">
-              <BatteryCharging className="h-3 w-3" />
+              <BatteryCharging aria-hidden="true" className="h-3 w-3" />
               {product.batteryLife}
             </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-secondary text-foreground px-2 py-0.5 font-mono ml-auto">
-              <Shield className="h-3 w-3 text-solar" />
+              <Shield aria-hidden="true" className="h-3 w-3 text-solar" />
               {product.waterproof}
             </span>
           </div>
 
           {/* Rating */}
           <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1.5">
-            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+            <Star aria-hidden="true" className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
             <span className="font-bold text-foreground font-mono">{product.rating.toFixed(1)}</span>
-            <span>({product.reviewsCount} rese\u00f1as verificadas)</span>
+            <span>({product.reviewsCount} reseñas verificadas)</span>
           </div>
 
           {/* Product Title */}
@@ -135,7 +135,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               <span className="text-xs text-muted-foreground font-semibold">USD</span>
             </div>
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-              Despacho en 24h a todo Panam\u00e1
+              Despachos a todo Panamá
             </span>
           </div>
 
@@ -151,11 +151,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <button
               type="button"
               onClick={() => addItem(product, 1)}
-              aria-label={`A\u00f1adir ${product.name} al carrito`}
+              aria-label={`Añadir ${product.name} al carrito`}
               className="pressable flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer"
             >
-              <ShoppingBag className="h-3.5 w-3.5" />
-              <span>A\u00f1adir</span>
+              <ShoppingBag aria-hidden="true" className="h-3.5 w-3.5" />
+              <span>Añadir</span>
             </button>
           </div>
         </div>

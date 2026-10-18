@@ -14,18 +14,18 @@ export const PromoBanner: React.FC = () => {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
         <div className="flex flex-1 items-center justify-center gap-2 text-center sm:gap-3">
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-solar text-solar-foreground shrink-0">
-            <Truck className="h-3 w-3" />
+            <Truck aria-hidden="true" className="h-3 w-3" />
           </span>
           <p className="tracking-wide text-[11px] sm:text-xs">
-            <strong className="text-solar font-bold">DESPACHOS A TODO PANAMÁ EN 24H:</strong>{" "}
-            Por Transporte Ferguson, Uno Express y Servientrega • Servicio al cliente y pedidos por WhatsApp al{" "}
+            <strong className="text-solar font-bold">DESPACHOS A TODO PANAMÁ:</strong>{" "}
+            Retiro en sucursal (Ferguson y Uno Express) o Puerta a Puerta (Servientrega) • Pedidos por WhatsApp al{" "}
             <a
               href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20quisiera%20asesoria%20sobre%20las%20lamparas%20solares"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 rounded bg-black/25 px-2 py-0.5 font-mono font-bold text-solar underline-offset-2 hover:bg-black/40 transition-colors"
             >
-              <PhoneCall className="h-3 w-3 text-solar" />
+              <PhoneCall aria-hidden="true" className="h-3 w-3 text-solar" />
               <span>6989-3055</span>
             </a>
           </p>

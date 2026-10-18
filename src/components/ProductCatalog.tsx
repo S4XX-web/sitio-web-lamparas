@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Search, Sparkles, Sun, ArrowUpDown, SlidersHorizontal, X, Zap } from "lucide-react";
+import { Search, Sparkles, Sun, ArrowUpDown, X } from "lucide-react";
 import { PRODUCTS } from "../data/products";
 import { ProductCard } from "./ProductCard";
 
@@ -10,8 +10,8 @@ export const ProductCatalog: React.FC = () => {
 
   const categories = [
     { id: "all", label: "Colección Completa (3)" },
-    { id: "potencia", label: "Alta Potencia (1200W / Reflector 300W)" },
-    { id: "pared", label: "Fachadas y Muros (800W)" },
+    { id: "farolas", label: "Farolas de Calle con Radar (1200W y 800W)" },
+    { id: "reflector", label: "Proyector / Reflector Solar (300W)" },
   ];
 
   const filteredProducts = useMemo(() => {
@@ -36,11 +36,11 @@ export const ProductCatalog: React.FC = () => {
     <section id="catalogo" className="relative overflow-hidden bg-forest/95 text-white py-24 px-4 sm:px-6 transition-colors duration-500">
       {/* Ambient Lighting Orbs */}
       <div
-        aria-hidden
+        aria-hidden="true"
         className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-leaf/25 blur-3xl"
       />
       <div
-        aria-hidden
+        aria-hidden="true"
         className="pointer-events-none absolute top-1/2 -right-32 h-[30rem] w-[30rem] rounded-full bg-solar/20 blur-3xl"
       />
 
@@ -48,14 +48,14 @@ export const ProductCatalog: React.FC = () => {
         {/* Section Header */}
         <div className="text-center mb-12">
           <span className="glass-chip inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold text-solar-foreground shadow-sm">
-            <Sun className="h-4 w-4" />
+            <Sun aria-hidden="true" className="h-4 w-4" />
             Luminarias Oficiales en Panamá
           </span>
           <h2 className="mt-4 font-serif text-3xl font-extrabold text-white sm:text-5xl tracking-tight">
-            Colección Solar Insignia 2026
+            Catálogo Oficial Rolinger 2026
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-white/85 leading-relaxed">
-            3 modelos de alta potencia fotovoltaica probados bajo el calor y los aguaceros del trópico panameño. Cero cables, cero facturas de luz y encendido automático.
+            Farolas solares de calle de 1200W y 800W con sensor de radar inteligente, y proyector solar de 300W con panel independiente. Cero consumo eléctrico y encendido automático al anochecer.
           </p>
         </div>
 
@@ -64,10 +64,10 @@ export const ProductCatalog: React.FC = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             {/* Search Input */}
             <div className="relative w-full md:w-80">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
+              <Search aria-hidden="true" className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
               <input
                 type="text"
-                placeholder="Buscar por 1200w, 800w, reflector 300w..."
+                placeholder="Buscar por 1200W, 800W, reflector 300W..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full rounded-full border border-white/15 bg-white/10 py-2.5 pl-10 pr-10 text-xs sm:text-sm text-white placeholder-white/50 focus:border-solar focus:outline-none focus:ring-1 focus:ring-solar transition-colors"
@@ -86,7 +86,7 @@ export const ProductCatalog: React.FC = () => {
 
             {/* Sort Dropdown */}
             <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-              <ArrowUpDown className="h-4 w-4 text-solar" />
+              <ArrowUpDown aria-hidden="true" className="h-4 w-4 text-solar" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
@@ -118,7 +118,7 @@ export const ProductCatalog: React.FC = () => {
               </button>
             ))}
             <span className="ml-auto text-xs text-white/70 hidden sm:inline font-mono">
-              3 modelos listos para despacho en 24h
+              3 modelos disponibles con despacho a todo Panamá
             </span>
           </div>
         </div>
@@ -132,12 +132,13 @@ export const ProductCatalog: React.FC = () => {
           </div>
         ) : (
           <div className="rounded-3xl border border-white/10 bg-black/35 p-12 text-center backdrop-blur-md">
-            <Sparkles className="mx-auto h-12 w-12 text-solar/60 mb-3" />
+            <Sparkles aria-hidden="true" className="mx-auto h-12 w-12 text-solar/60 mb-3" />
             <h3 className="text-xl font-bold text-white font-serif">No encontramos productos</h3>
             <p className="mt-1 text-sm text-white/70">
               Prueba seleccionando "Colección Completa" o limpiando el texto de búsqueda.
             </p>
             <button
+              type="button"
               onClick={() => {
                 setSelectedCategory("all");
                 setSearchQuery("");
