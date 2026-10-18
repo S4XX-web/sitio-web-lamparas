@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { X, Star, ShoppingBag, ShieldCheck, Zap, BatteryCharging, Check, MessageCircle } from "lucide-react";
+import { X, Star, ShoppingBag, ShieldCheck, Zap, BatteryCharging, Check, MessageCircle, FileText } from "lucide-react";
 import { useCart } from "../context/CartContext";
 
 export const ProductQuickViewModal: React.FC = () => {
-  const { quickViewProduct, setQuickViewProduct, addItem } = useCart();
+  const { quickViewProduct, setQuickViewProduct, addItem, setIsQuotationOpen } = useCart();
   const [quantity, setQuantity] = useState(1);
 
   if (!quickViewProduct) return null;
@@ -11,6 +11,12 @@ export const ProductQuickViewModal: React.FC = () => {
   const handleAddToCart = () => {
     addItem(quickViewProduct, quantity);
     setQuickViewProduct(null);
+  };
+
+  const handleQuotationDirect = () => {
+    addItem(quickViewProduct, quantity);
+    setQuickViewProduct(null);
+    setIsQuotationOpen(true);
   };
 
   const handleWhatsAppInstant = () => {
@@ -150,7 +156,7 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className="flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-xs font-bold text-primary-foreground shadow hover:bg-primary/90 transition-all hover:scale-102"
+                  className="flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-xs font-bold text-primary-foreground shadow hover:bg-primary/90 transition-all hover:scale-102 cursor-pointer"
                 >
                   <ShoppingBag aria-hidden="true" className="h-4 w-4" />
                   <span>Añadir al Carrito</span>
@@ -159,12 +165,21 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
                 <button
                   type="button"
                   onClick={handleWhatsAppInstant}
-                  className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-xs font-bold text-white shadow hover:bg-emerald-700 transition-all hover:scale-102"
+                  className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-xs font-bold text-white shadow hover:bg-emerald-700 transition-all hover:scale-102 cursor-pointer"
                 >
                   <MessageCircle aria-hidden="true" className="h-4 w-4" />
                   <span>Pedir por WhatsApp</span>
                 </button>
               </div>
+
+              <button
+                type="button"
+                onClick={handleQuotationDirect}
+                className="w-full flex items-center justify-center gap-2 rounded-full border-2 border-solar/40 bg-solar/10 hover:bg-solar hover:text-solar-foreground text-foreground px-4 py-2.5 text-xs font-bold transition-all cursor-pointer"
+              >
+                <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar group-hover:text-inherit" />
+                <span>Generar Cotización en PDF de este modelo</span>
+              </button>
 
               <p className="text-center text-[10px] text-muted-foreground">
                 Garantía de calidad • Despachos a todo Panamá

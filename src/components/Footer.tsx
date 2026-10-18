@@ -1,7 +1,11 @@
 import React from "react";
-import { Truck, Smartphone, ShieldCheck, MapPin, Heart, PhoneCall } from "lucide-react";
+import { Truck, Smartphone, ShieldCheck, MapPin, Heart, PhoneCall, Lock } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { useCart } from "../context/CartContext";
 
 export const Footer: React.FC = () => {
+  const { setActiveDepartment, setIsQuotationOpen } = useCart();
+
   return (
     <footer className="border-t border-border bg-card text-card-foreground transition-colors duration-500 pb-20 md:pb-0">
       {/* Panamá Logistics & Trust Banner */}
@@ -59,7 +63,11 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {/* Brand Presentation */}
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setActiveDepartment("general")}
+              className="flex items-center gap-3 text-left cursor-pointer group"
+            >
               <div className="h-14 w-14 rounded-full bg-white/95 p-1 shadow-md ring-1 ring-border/40 overflow-hidden flex items-center justify-center shrink-0">
                 <img
                   src="/logo-emblem.png"
@@ -72,13 +80,13 @@ export const Footer: React.FC = () => {
                   Solar y Hogar
                 </span>
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
-                  Panamá • Iluminación Solar Inteligente
+                  Panamá • Energía Solar & Soluciones de Hogar
                 </span>
               </div>
-            </div>
+            </button>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              Especialistas en iluminación solar exterior residencial y comercial en Panamá.
-              Cero cables, $0 en tu factura de luz y encendido automático al anochecer.
+              Tu aliado en Panamá para iluminación solar exterior de alta potencia, eficiencia energética y soluciones para el confort del hogar.
+              Cero cables, $0 en tu factura de luz y preparación integral para tus espacios.
             </p>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <MapPin aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
@@ -89,38 +97,53 @@ export const Footer: React.FC = () => {
           {/* Quick Navigation */}
           <div>
             <h5 className="text-xs font-bold uppercase tracking-wider text-foreground mb-3 font-mono">
-              Navegación
+              Departamentos y Secciones
             </h5>
             <ul className="space-y-2.5 text-xs text-muted-foreground font-medium">
               <li>
-                <a href="/#catalogo" className="hover:text-solar transition-colors">
-                  Catálogo Oficial 2026
-                </a>
+                <button
+                  type="button"
+                  onClick={() => setActiveDepartment("general")}
+                  className="hover:text-solar transition-colors font-semibold text-foreground cursor-pointer text-left"
+                >
+                  Portada Principal (Presentación General)
+                </button>
               </li>
               <li>
-                <a href="/#anatomia" className="hover:text-solar transition-colors">
-                  Cómo Está Hecha (Anatomía)
-                </a>
+                <button
+                  type="button"
+                  onClick={() => setActiveDepartment("solar")}
+                  className="hover:text-solar transition-colors cursor-pointer text-left"
+                >
+                  Iluminación & Energía Solar (3 Modelos)
+                </button>
               </li>
               <li>
-                <a href="/#simulador" className="hover:text-solar transition-colors">
-                  Simulador Día / Noche
-                </a>
+                <button
+                  type="button"
+                  onClick={() => setActiveDepartment("muebles")}
+                  className="hover:text-solar transition-colors cursor-pointer text-left"
+                >
+                  Muebles & Terraza (Próximo Lanzamiento)
+                </button>
               </li>
               <li>
-                <a href="/#beneficios" className="hover:text-solar transition-colors">
-                  Ventajas Fotovoltaicas
-                </a>
+                <button
+                  type="button"
+                  onClick={() => setActiveDepartment("accesorios")}
+                  className="hover:text-solar transition-colors cursor-pointer text-left"
+                >
+                  Accesorios & Decoración (Próximo Lanzamiento)
+                </button>
               </li>
               <li>
-                <a href="/#envios-instalaciones" className="hover:text-solar transition-colors font-bold text-foreground">
-                  Envíos e Instalaciones
-                </a>
-              </li>
-              <li>
-                <a href="/#faq" className="hover:text-solar transition-colors">
-                  Preguntas Frecuentes
-                </a>
+                <button
+                  type="button"
+                  onClick={() => setIsQuotationOpen(true)}
+                  className="hover:text-solar transition-colors font-bold text-foreground cursor-pointer text-left"
+                >
+                  Generador de Cotización Oficial (PDF)
+                </button>
               </li>
             </ul>
           </div>
@@ -134,7 +157,7 @@ export const Footer: React.FC = () => {
               Realizamos despachos a todo Panamá mediante Transporte Ferguson y Uno Express (para retiro en sucursal) y Servientrega Panamá (única agencia con entrega puerta a puerta además de retiro en sucursal).
             </p>
             <a
-              href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20quisiera%20asesoria%20sobre%20las%20lamparas%20solares"
+              href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20quisiera%20asesoria%20sobre%20sus%20productos"
               target="_blank"
               rel="noopener noreferrer"
               className="pressable inline-flex items-center gap-2 rounded-xl bg-secondary border border-border px-4 py-2.5 text-xs font-bold text-foreground hover:border-solar/60 transition-colors"
@@ -148,10 +171,20 @@ export const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="mt-12 pt-6 border-t border-border/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-muted-foreground">
           <p>© {new Date().getFullYear()} Solar y Hogar Panamá. Todos los derechos reservados.</p>
-          <p className="flex items-center gap-1">
-            <span>Iluminando noches con energía limpia</span>
-            <Heart aria-hidden="true" className="h-3 w-3 text-solar fill-solar" />
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="flex items-center gap-1">
+              <span>Energía limpia y soluciones para tu hogar</span>
+              <Heart aria-hidden="true" className="h-3 w-3 text-solar fill-solar" />
+            </p>
+            <Link
+              to="/admin"
+              className="text-muted-foreground/60 hover:text-amber-500 transition-colors inline-flex items-center gap-1.5 font-medium border border-border/60 hover:border-amber-500/40 px-2 py-0.5 rounded-md"
+              title="Panel de Vendedor"
+            >
+              <Lock className="w-3 h-3" />
+              <span>Acceso Vendedor</span>
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

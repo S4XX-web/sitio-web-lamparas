@@ -1,26 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PromoBanner } from "../components/PromoBanner";
 import { Navbar } from "../components/Navbar";
-import { Hero } from "../components/Hero";
-import { ProductAnatomy } from "../components/ProductAnatomy";
-import { ProductCatalog } from "../components/ProductCatalog";
-import { ComparisonTable } from "../components/ComparisonTable";
-import { DayNightSimulator } from "../components/DayNightSimulator";
-import { Benefits } from "../components/Benefits";
-import { ShipmentsAndInstallations } from "../components/ShipmentsAndInstallations";
-import { FAQ } from "../components/FAQ";
+import { MainBrandHero } from "../components/MainBrandHero";
+import { BrandDepartments } from "../components/BrandDepartments";
+import { GeneralFeaturedProducts } from "../components/GeneralFeaturedProducts";
+import { SolarDepartmentView } from "../components/SolarDepartmentView";
+import { HomeDepartmentView } from "../components/HomeDepartmentView";
 import { Footer } from "../components/Footer";
 import { MobileQuickBar } from "../components/MobileQuickBar";
-import { QuotationModal } from "../components/QuotationModal";
+import { useCart } from "../context/CartContext";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Solar y Hogar — Farolas LED y Proyectores Solares Rolinger en Panamá" },
+      { title: "Solar y Hogar — Iluminación Solar, Muebles y Soluciones para el Hogar en Panamá" },
       {
         name: "description",
         content:
-          "Farolas solares Rolinger de 1200W y 800W con sensor de radar y proyector de 300W IP67 en Panamá. Cero cables, $0 en luz y despachos a todo Panamá por Ferguson, Uno Express y Servientrega.",
+          "Transforma tu hogar en Panamá con energía solar autónoma sin cables ni facturas de luz, y próximas líneas de mobiliario y accesorios para el hogar. Despachos a todo Panamá.",
       },
     ],
   }),
@@ -28,6 +25,8 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const { activeDepartment, setActiveDepartment } = useCart();
+
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-solar/30 selection:text-solar-foreground pb-12 md:pb-0">
       {/* Top Notification */}
@@ -37,29 +36,33 @@ function Index() {
       <Navbar />
 
       <main>
-        {/* Signature Brand Hero with 3D Tilt & Live Variant Switcher */}
-        <Hero />
+        {activeDepartment === "general" && (
+          <div className="animate-in fade-in duration-300">
+            {/* 1. Main Brand Presentation Landing Hero */}
+            <MainBrandHero onSelectDepartment={setActiveDepartment} />
 
-        {/* Product Anatomy: 5 Engineering Layers & Components */}
-        <ProductAnatomy />
+            {/* 2. Brand Departments Navigator */}
+            <BrandDepartments
+              onSelectDepartment={setActiveDepartment}
+              activeDepartment={activeDepartment}
+            />
 
-        {/* Product Catalog with Real Rolinger Models and Multi-Image Preview */}
-        <ProductCatalog />
+            {/* 3. Featured Products of Each Department (Real Solar Models + Upcoming Home Teaser) */}
+            <GeneralFeaturedProducts onSelectDepartment={setActiveDepartment} />
+          </div>
+        )}
 
-        {/* Technical Comparison Matrix */}
-        <ComparisonTable />
+        {activeDepartment === "solar" && (
+          <SolarDepartmentView onBackToGeneral={() => setActiveDepartment("general")} />
+        )}
 
-        {/* Interactive Lighting Simulator */}
-        <DayNightSimulator />
-
-        {/* Value Proposition & Ecological Benefits */}
-        <Benefits />
-
-        {/* Real Customer Shipments and Installations (Photos & Videos) */}
-        <ShipmentsAndInstallations />
-
-        {/* Frequently Asked Questions */}
-        <FAQ />
+        {(activeDepartment === "muebles" || activeDepartment === "accesorios") && (
+          <HomeDepartmentView
+            department={activeDepartment}
+            onBackToGeneral={() => setActiveDepartment("general")}
+            onGoToSolar={() => setActiveDepartment("solar")}
+          />
+        )}
       </main>
 
       {/* Main Footer */}
@@ -67,9 +70,6 @@ function Index() {
 
       {/* Mobile-First Sticky Quick Purchase Bar */}
       <MobileQuickBar />
-
-      {/* Official PDF Quotation Generator Modal */}
-      <QuotationModal />
     </div>
   );
 }

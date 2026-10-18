@@ -9,13 +9,13 @@ export const Benefits: React.FC = () => {
         <div className="text-center mb-16">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-4 py-1 text-xs font-bold text-primary">
             <Leaf aria-hidden="true" className="h-3.5 w-3.5" />
-            Ingeniería & Sostenibilidad
+            Eficiencia & Sostenibilidad
           </span>
           <h2 className="mt-3 font-serif text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight">
-            ¿Por qué la iluminación solar de Solar y Hogar supera a la convencional?
+            ¿Por qué la iluminación solar supera a la convencional?
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-muted-foreground leading-relaxed">
-            Diseñamos cada lámpara para brindar excelente luminosidad nocturna, durabilidad ante el clima húmedo de Panamá y total independencia de la red eléctrica.
+            Ventajas de contar con equipos fotovoltaicos autónomos en Panamá: cero cables, cero consumo en tu recibo de luz y encendido automático crepuscular.
           </p>
         </div>
 

@@ -9,8 +9,11 @@ import {
   Plus,
   Minus,
   Sparkles,
+  Trash2,
+  PackagePlus,
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { PRODUCTS } from "../data/products";
 import { generateQuotationPDF } from "../utils/quotationPdf";
 import { toast } from "sonner";
 
@@ -19,7 +22,16 @@ function sanitizeField(val: string, maxLen = 100): string {
 }
 
 export const QuotationModal: React.FC = () => {
-  const { isQuotationOpen, setIsQuotationOpen, items, updateQuantity, total } = useCart();
+  const {
+    isQuotationOpen,
+    setIsQuotationOpen,
+    items,
+    addItem,
+    updateQuantity,
+    removeItem,
+    total,
+    products,
+  } = useCart();
 
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -37,14 +49,10 @@ export const QuotationModal: React.FC = () => {
 
   const handleDownloadPDF = async () => {
     if (items.length === 0) {
-      toast.error("Agrega al menos una lámpara al carrito para cotizar");
+      toast.error("Selecciona al menos una lámpara para generar la cotización");
       return;
     }
-    const cleanClient = sanitizeField(clientName, 80);
-    if (!cleanClient) {
-      toast.error("Por favor ingresa el nombre del cliente o empresa");
-      return;
-    }
+    const cleanClient = sanitizeField(clientName, 80) || "Cliente Particular";
 
     try {
       setIsGenerating(true);
@@ -194,57 +202,126 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
               </div>
             </div>
 
-            {/* Items in Cart Quick Adjust */}
+            {/* Items in Cart Quick Adjust & Direct Lamp Selector */}
             <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                <span>2. Lámparas a Cotizar ({items.length})</span>
-                <span className="text-solar font-mono font-bold">${total.toFixed(2)} USD</span>
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <PackagePlus aria-hidden="true" className="h-4 w-4 text-solar" />
+                  <span>2. Lámparas a Cotizar ({items.length})</span>
+                </h3>
+                <span className="text-solar font-mono font-bold text-sm">${total.toFixed(2)} USD</span>
+              </div>
 
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {items.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-2 text-center">
-                    No tienes productos en el carrito. Agrega una lámpara desde el catálogo.
+              {items.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-secondary/30 p-3 space-y-2.5">
+                  <p className="text-xs font-medium text-foreground text-center">
+                    Selecciona las lámparas para incluir en tu cotización oficial:
                   </p>
-                ) : (
-                  items.map(({ product, quantity }) => (
-                    <div
-                      key={product.id}
-                      className="flex items-center justify-between p-2 rounded-xl bg-background border border-border/80 text-xs gap-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-foreground truncate">{product.name}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          Und: ${product.price.toFixed(2)} USD
-                        </p>
+                  <div className="space-y-1.5">
+                    {products.map((prod) => (
+                      <div
+                        key={prod.id}
+                        className="flex items-center justify-between p-2 rounded-xl bg-card border border-border text-xs gap-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-foreground truncate">{prod.name}</p>
+                          <p className="text-[11px] text-solar font-semibold">${prod.price.toFixed(2)} USD</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => addItem(prod, 1)}
+                          className="pressable inline-flex items-center gap-1 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1 text-xs font-bold shrink-0 cursor-pointer shadow-xs"
+                        >
+                          <Plus className="h-3 w-3" />
+                          <span>Añadir</span>
+                        </button>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {items.map(({ product, quantity }) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-background border border-border/80 text-xs gap-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-foreground truncate">{product.name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Und: ${product.price.toFixed(2)} USD
+                          </p>
+                        </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <div className="flex items-center rounded-lg border border-border bg-card">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center rounded-lg border border-border bg-card">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (quantity <= 1) {
+                                  removeItem(product.id);
+                                } else {
+                                  updateQuantity(product.id, quantity - 1);
+                                }
+                              }}
+                              className="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                              title="Restar o eliminar"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="w-6 text-center font-bold text-xs">{quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(product.id, quantity + 1)}
+                              className="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                              title="Aumentar"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <span className="font-bold text-solar w-13 text-right">
+                            ${(product.price * quantity).toFixed(2)}
+                          </span>
                           <button
                             type="button"
-                            onClick={() => updateQuantity(product.id, Math.max(1, quantity - 1))}
-                            className="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                            onClick={() => removeItem(product.id)}
+                            className="p-1 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                            title="Eliminar de cotización"
+                            aria-label={`Eliminar ${product.name}`}
                           >
-                            <Minus className="h-3 w-3" />
-                          </button>
-                          <span className="w-6 text-center font-bold text-xs">{quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(product.id, quantity + 1)}
-                            className="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
-                          >
-                            <Plus className="h-3 w-3" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <span className="font-bold text-solar w-14 text-right">
-                          ${(product.price * quantity).toFixed(2)}
-                        </span>
                       </div>
+                    ))}
+                  </div>
+
+                  {/* Quick-add additional models button bar */}
+                  <div className="pt-2 border-t border-border/60">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                      + Sumar otro modelo a la cotización:
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {products.map((prod) => (
+                        <button
+                          key={prod.id}
+                          type="button"
+                          onClick={() => addItem(prod, 1)}
+                          className="pressable flex flex-col items-center justify-center p-1.5 rounded-lg border border-border bg-background hover:bg-secondary transition-colors cursor-pointer text-center"
+                        >
+                          <span className="text-[10px] font-bold text-foreground truncate w-full">
+                            {prod.badge || prod.name} (${prod.price.toFixed(0)})
+                          </span>
+                          <span className="text-[9px] text-solar font-semibold">
+                            + Añadir
+                          </span>
+                        </button>
+                      ))}
                     </div>
-                  ))
-                )}
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Actions Bar */}
@@ -373,23 +450,31 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
                     </tr>
                   </thead>
                   <tbody className="text-[9px] sm:text-[10px]">
-                    {items.map(({ product, quantity }, idx) => (
-                      <tr
-                        key={product.id}
-                        className={
-                          idx % 2 === 0
-                            ? "bg-[#DDE6EE] text-[#0F224A] font-bold"
-                            : "bg-white text-slate-800"
-                        }
-                      >
-                        <td className="py-2 px-3">{product.name}</td>
-                        <td className="py-2 px-2 text-center">{quantity}</td>
-                        <td className="py-2 px-2 text-right">${product.price.toFixed(2)}</td>
-                        <td className="py-2 px-3 text-right font-black">
-                          ${(product.price * quantity).toFixed(2)}
+                    {items.length === 0 ? (
+                      <tr className="bg-slate-50 text-slate-400 text-center italic">
+                        <td colSpan={4} className="py-8 text-[10px]">
+                          Añade lámparas a la izquierda para visualizar el desglose en vivo
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      items.map(({ product, quantity }, idx) => (
+                        <tr
+                          key={product.id}
+                          className={
+                            idx % 2 === 0
+                              ? "bg-[#DDE6EE] text-[#0F224A] font-bold"
+                              : "bg-white text-slate-800"
+                          }
+                        >
+                          <td className="py-2 px-3">{product.name}</td>
+                          <td className="py-2 px-2 text-center">{quantity}</td>
+                          <td className="py-2 px-2 text-right">${product.price.toFixed(2)}</td>
+                          <td className="py-2 px-3 text-right font-black">
+                            ${(product.price * quantity).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
 
                     <tr className="bg-[#DDE6EE] h-3">
                       <td colSpan={4}></td>

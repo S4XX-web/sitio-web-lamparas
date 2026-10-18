@@ -1,12 +1,12 @@
 import React, { useState, useRef } from "react";
-import { Leaf, Sun, Zap, ArrowRight, Moon, Shield, Truck, ShoppingBag, Eye, MessageCircle, Layers } from "lucide-react";
+import { Leaf, Sun, Zap, ArrowRight, Moon, Shield, Truck, ShoppingBag, Eye, MessageCircle, Layers, FileText, Home } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { PRODUCTS } from "../data/products";
 import { Link } from "@tanstack/react-router";
 import heroImage from "../assets/hero-solar.jpg";
 
 export const Hero: React.FC = () => {
-  const { nightMode, setNightMode, addItem } = useCart();
+  const { nightMode, setNightMode, addItem, setIsQuotationOpen, products } = useCart();
   const [selectedProductId, setSelectedProductId] = useState<string>("lampara-solar-1200w");
 
   // Interactive 3D tilt state (desktop only)
@@ -30,7 +30,7 @@ export const Hero: React.FC = () => {
     setTilt({ x: 0, y: 0 });
   };
 
-  const currentProduct = PRODUCTS.find((p) => p.id === selectedProductId) || PRODUCTS[0];
+  const currentProduct = products.find((p) => p.id === selectedProductId) || products[0] || PRODUCTS[0];
 
   const handleWhatsAppOrder = () => {
     const message = `*CONSULTA DE PEDIDO - SOLAR Y HOGAR PANAMA*
@@ -78,8 +78,8 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
         {/* Top Badges & Tactile Lighting Switch */}
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-solar/95 px-3.5 py-1 text-xs font-bold text-solar-foreground shadow-sm backdrop-blur-md">
-            <Leaf aria-hidden="true" className="h-3.5 w-3.5" />
-            Luminarias Rolinger Oficiales • Panamá 2026
+            <Home aria-hidden="true" className="h-3.5 w-3.5" />
+            Solar y Hogar Panamá • Energía, Mobiliario & Confort
           </span>
 
           <button
@@ -107,9 +107,9 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
           {/* Left Side: Brand Statement & Claims (7 Cols) */}
           <div className="lg:col-span-7">
             <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.08] text-white tracking-tight text-balance">
-              Iluminación solar autónoma{" "}
+              Energía limpia y confort{" "}
               <span className="relative inline-block text-solar">
-                sin cables ni recibos de luz
+                para tu hogar y familia
                 <svg
                   aria-hidden="true"
                   className="absolute -bottom-2 left-0 w-full text-solar/40"
@@ -128,26 +128,35 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
             </h1>
 
             <p className="mt-5 max-w-xl text-base sm:text-lg text-white/90 leading-relaxed font-normal">
-              Farolas de calle y proyectores solares con tecnología de radar inteligente y celdas fotovoltaicas de alta eficiencia.
-              Instalación práctica sin cableado eléctrico (incluye kit de fijación para montar con herramientas básicas), encendido automático al anochecer y resistencia contra lluvias tropicales en Panamá.
+              Especialistas en iluminación solar autónoma para patios, entradas y fincas sin cables ni facturas de luz, y tu nuevo destino en Panamá para mobiliario y accesorios pensados para transformar cada rincón de tu casa.
             </p>
 
             {/* Quick Action Links */}
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+            <div className="mt-8 flex flex-wrap items-center gap-3.5">
               <a
                 href="#catalogo"
-                className="pressable inline-flex items-center gap-2.5 rounded-full bg-solar px-7 py-3.5 text-sm font-bold text-solar-foreground shadow-lg hover:bg-solar/95 cursor-pointer"
+                className="pressable inline-flex items-center gap-2.5 rounded-full bg-solar px-6 sm:px-7 py-3.5 text-sm font-bold text-solar-foreground shadow-lg hover:bg-solar/95 cursor-pointer"
               >
                 <span>Explorar los 3 Modelos</span>
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </a>
 
+              {/* Botón de Cotización Oficial - Visible al instante nada más entrar */}
+              <button
+                type="button"
+                onClick={() => setIsQuotationOpen(true)}
+                className="pressable inline-flex items-center gap-2 rounded-full border border-solar/70 bg-solar/20 hover:bg-solar text-white hover:text-solar-foreground px-5 sm:px-6 py-3.5 text-sm font-bold backdrop-blur-md transition-all cursor-pointer shadow-md hover:shadow-solar/30"
+              >
+                <FileText aria-hidden="true" className="h-4 w-4 text-solar group-hover:text-inherit" />
+                <span>Cotizador Oficial (PDF)</span>
+              </button>
+
               <a
                 href="#anatomia"
-                className="pressable inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/35 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-md hover:bg-black/50 cursor-pointer shadow-sm"
+                className="pressable inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/35 px-5 sm:px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-md hover:bg-black/50 cursor-pointer shadow-sm"
               >
                 <Layers aria-hidden="true" className="h-4 w-4 text-solar" />
-                <span>Ver Cómo Está Hecha</span>
+                <span>Cómo Está Hecha</span>
               </a>
             </div>
 
@@ -172,15 +181,17 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
             >
               {/* Variant Selector Tabs */}
               <div className="flex rounded-2xl bg-white/10 p-1 mb-5">
-                {PRODUCTS.map((prod) => {
-                  const isSelected = prod.id === selectedProductId;
-                  const shortName = prod.id.includes("1200w")
-                    ? "1200W"
-                    : prod.id.includes("800w")
-                    ? "800W"
-                    : "300W";
+                {products
+                  .filter((p) => p.department === "solar" || !p.department)
+                  .map((prod) => {
+                    const isSelected = prod.id === selectedProductId;
+                    const shortName = prod.badge || (prod.id.includes("1200w")
+                      ? "1200W"
+                      : prod.id.includes("800w")
+                      ? "800W"
+                      : "300W");
 
-                  return (
+                    return (
                     <button
                       key={prod.id}
                       type="button"
@@ -253,14 +264,25 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
                   </button>
                 </div>
 
-                <div className="mt-3 text-center">
+                <div className="mt-3 flex items-center justify-between text-[11px] text-white/75 px-1">
                   <Link
                     to="/producto/$productId"
                     params={{ productId: currentProduct.id }}
-                    className="text-[11px] text-white/70 hover:text-solar underline font-mono inline-flex items-center gap-1"
+                    className="hover:text-solar underline font-mono inline-flex items-center gap-1"
                   >
-                    <Eye aria-hidden="true" className="h-3 w-3" /> Ver todas las fotos y ficha completa
+                    <Eye aria-hidden="true" className="h-3 w-3" /> Ficha completa
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addItem(currentProduct, 1);
+                      setIsQuotationOpen(true);
+                    }}
+                    className="hover:text-solar underline font-mono inline-flex items-center gap-1 text-solar cursor-pointer font-bold"
+                  >
+                    <FileText aria-hidden="true" className="h-3 w-3" /> Cotizar este modelo
+                  </button>
                 </div>
               </div>
             </div>

@@ -17,6 +17,7 @@ import { Toaster } from "../components/ui/sonner";
 import { CartDrawer } from "../components/CartDrawer";
 import { ProductQuickViewModal } from "../components/ProductQuickViewModal";
 import { CheckoutModal } from "../components/CheckoutModal";
+import { QuotationModal } from "../components/QuotationModal";
 import { FloatingWhatsApp } from "../components/FloatingWhatsApp";
 
 function NotFoundComponent() {
@@ -147,6 +148,7 @@ function RootComponent() {
         <CartDrawer />
         <ProductQuickViewModal />
         <CheckoutModal />
+        <QuotationModal />
         <FloatingWhatsApp />
         <Toaster position="top-right" richColors />
       </CartProvider>

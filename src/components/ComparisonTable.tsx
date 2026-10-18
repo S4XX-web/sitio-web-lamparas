@@ -5,7 +5,8 @@ import { PRODUCTS } from "../data/products";
 import { useCart } from "../context/CartContext";
 
 export const ComparisonTable: React.FC = () => {
-  const { addItem } = useCart();
+  const { addItem, products } = useCart();
+  const solarModels = products.filter((p) => p.department === "solar" || !p.department);
 
   const specs = [
     {
@@ -118,7 +119,7 @@ export const ComparisonTable: React.FC = () => {
                 <th className="sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm p-4 sm:p-5 text-xs font-bold uppercase tracking-wider text-muted-foreground w-1/4">
                   Especificación
                 </th>
-                {PRODUCTS.map((prod) => (
+                {solarModels.map((prod) => (
                   <th key={prod.id} className="p-4 sm:p-5 text-center w-1/4 border-l border-border/70">
                     <div className="flex flex-col items-center">
                       <span className="rounded-full bg-solar/20 px-2.5 py-0.5 text-[10px] font-extrabold text-solar mb-2">

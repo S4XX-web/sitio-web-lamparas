@@ -1,8 +1,11 @@
+export type ProductDepartment = 'solar' | 'muebles' | 'accesorios';
+
 export interface Product {
   id: string;
   name: string;
   tagline: string;
-  category: 'farolas' | 'reflector' | 'jardin' | 'pared' | 'decoracion' | 'potencia';
+  department?: ProductDepartment;
+  category: 'farolas' | 'reflector' | 'solar' | 'muebles' | 'accesorios' | 'decoracion' | 'jardin' | 'pared' | 'potencia';
   price: number;
   originalPrice: number;
   rating: number;

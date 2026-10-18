@@ -100,13 +100,26 @@ Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.
                 <p className="mt-1 text-xs max-w-xs leading-relaxed">
                   Descubre nuestra colección de lámparas solares autónomas y dale luz a tu propiedad sin cables.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setIsCartOpen(false)}
-                  className="mt-5 rounded-full bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow hover:bg-primary/90 transition-all hover:scale-105 cursor-pointer"
-                >
-                  Ver Catálogo de Lámparas
-                </button>
+                <div className="flex flex-col gap-2 mt-5 w-full max-w-xs">
+                  <button
+                    type="button"
+                    onClick={() => setIsCartOpen(false)}
+                    className="rounded-full bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow hover:bg-primary/90 transition-all hover:scale-102 cursor-pointer"
+                  >
+                    Ver Catálogo de Lámparas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCartOpen(false);
+                      setIsQuotationOpen(true);
+                    }}
+                    className="rounded-full border border-solar/40 bg-solar/15 hover:bg-solar hover:text-solar-foreground px-6 py-2.5 text-xs font-bold text-foreground transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+                    <span>Abrir Cotizador Oficial (PDF)</span>
+                  </button>
+                </div>
               </div>
             ) : (
               items.map(({ product, quantity }) => (

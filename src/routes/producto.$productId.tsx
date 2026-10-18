@@ -15,6 +15,7 @@ import {
   Sparkles,
   CheckCircle2,
   Wrench,
+  FileText,
 } from "lucide-react";
 import { PRODUCTS } from "../data/products";
 import { useCart } from "../context/CartContext";
@@ -45,7 +46,8 @@ export const Route = createFileRoute("/producto/$productId")({
 
 function ProductDetailPage() {
   const { productId } = Route.useParams();
-  const product = PRODUCTS.find((p) => p.id === productId);
+  const { products } = useCart();
+  const product = products.find((p) => p.id === productId);
 
   if (!product) {
     return (
@@ -69,7 +71,7 @@ function ProductDetailPage() {
     );
   }
 
-  const { addItem, nightMode, setNightMode, setIsCartOpen } = useCart();
+  const { addItem, nightMode, setNightMode, setIsCartOpen, setIsQuotationOpen } = useCart();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
@@ -88,6 +90,11 @@ function ProductDetailPage() {
     setIsCartOpen(true);
   };
 
+  const handleDirectQuotation = () => {
+    addItem(product, quantity);
+    setIsQuotationOpen(true);
+  };
+
   const handleWhatsAppOrder = () => {
     const totalLine = (product.price * quantity).toFixed(2);
     const message = `*CONSULTA DE PEDIDO - SOLAR Y HOGAR PANAMA*
@@ -103,7 +110,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
     window.open(`https://wa.me/50769893055?text=${encodeURIComponent(message)}`, "_blank");
   };
 
-  const relatedProducts = PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3);
+  const relatedProducts = products.filter((p) => p.id !== product.id).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-solar/30 selection:text-solar-foreground">
@@ -298,6 +305,16 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
               >
                 <MessageCircle aria-hidden="true" className="h-5 w-5" />
                 <span>Pedir este Modelo por WhatsApp</span>
+              </button>
+
+              {/* Direct Official PDF Quotation Button */}
+              <button
+                type="button"
+                onClick={handleDirectQuotation}
+                className="pressable w-full flex items-center justify-center gap-2.5 rounded-full border-2 border-solar/50 bg-solar/10 hover:bg-solar hover:text-solar-foreground text-foreground py-3 px-6 font-bold text-sm shadow-sm transition-all cursor-pointer"
+              >
+                <FileText aria-hidden="true" className="h-4 w-4 text-solar group-hover:text-inherit" />
+                <span>Generar Cotización Oficial en PDF</span>
               </button>
             </div>
 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Star, ShoppingBag, Zap, BatteryCharging, Shield, ArrowUpRight } from "lucide-react";
+import { Star, ShoppingBag, Zap, BatteryCharging, Shield, ArrowUpRight, FileText } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Product } from "../types/store";
 import { useCart } from "../context/CartContext";
@@ -9,7 +9,7 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const { addItem } = useCart();
+  const { addItem, setIsQuotationOpen } = useCart();
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
 
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
@@ -139,20 +139,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link
-              to="/producto/$productId"
-              params={{ productId: product.id }}
-              className="pressable rounded-full border border-border bg-secondary/80 px-3 py-2 text-xs font-semibold text-secondary-foreground hover:bg-secondary cursor-pointer"
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                addItem(product, 1);
+                setIsQuotationOpen(true);
+              }}
+              aria-label={`Cotizar ${product.name} en PDF`}
+              className="pressable rounded-full border border-solar/40 bg-solar/10 hover:bg-solar hover:text-solar-foreground px-2.5 py-1.5 text-xs font-bold text-foreground cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
+              title="Abrir cotizador oficial con este modelo"
             >
-              Ficha
-            </Link>
+              <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar group-hover:text-inherit" />
+              <span>Cotizar</span>
+            </button>
 
             <button
               type="button"
               onClick={() => addItem(product, 1)}
               aria-label={`Añadir ${product.name} al carrito`}
-              className="pressable flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer"
+              className="pressable flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer"
             >
               <ShoppingBag aria-hidden="true" className="h-3.5 w-3.5" />
               <span>Añadir</span>
