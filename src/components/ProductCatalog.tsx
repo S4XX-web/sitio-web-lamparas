@@ -40,7 +40,6 @@ export const ProductCatalog: React.FC = () => {
     }).sort((a, b) => {
       if (sortBy === "price-asc") return a.price - b.price;
       if (sortBy === "price-desc") return b.price - a.price;
-      if (sortBy === "rating") return b.rating - a.rating;
       return 0;
     });
   }, [selectedCategory, searchQuery, sortBy]);
@@ -109,7 +108,6 @@ export const ProductCatalog: React.FC = () => {
                 <option value="featured" className="bg-forest">Destacados</option>
                 <option value="price-asc" className="bg-forest">Precio: Menor a Mayor</option>
                 <option value="price-desc" className="bg-forest">Precio: Mayor a Menor</option>
-                <option value="rating" className="bg-forest">Mejor Calificación</option>
               </select>
             </div>
           </div>

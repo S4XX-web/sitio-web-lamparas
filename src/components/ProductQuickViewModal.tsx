@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Star, ShoppingBag, ShieldCheck, Zap, BatteryCharging, Check, MessageCircle, FileText } from "lucide-react";
+import { X, ShoppingBag, ShieldCheck, Zap, BatteryCharging, Check, MessageCircle, FileText } from "lucide-react";
 import { useCart } from "../context/CartContext";
 
 export const ProductQuickViewModal: React.FC = () => {
@@ -81,19 +81,6 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
           {/* Details & Actions Side */}
           <div className="flex flex-col justify-between p-4 sm:p-6 md:p-8 md:max-h-[85vh] md:overflow-y-auto">
             <div>
-              {/* Rating */}
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-                <div className="flex items-center text-amber-500">
-                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
-                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
-                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
-                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
-                  <Star aria-hidden="true" className="h-4 w-4 fill-amber-400" />
-                </div>
-                <span className="font-bold text-foreground">{quickViewProduct.rating}</span>
-                <span>({quickViewProduct.reviewsCount} opiniones verificadas)</span>
-              </div>
-
               {/* Title */}
               <h2 className="font-serif text-2xl font-bold text-foreground">
                 {quickViewProduct.name}

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Star,
   ShoppingBag,
   Zap,
   BatteryCharging,
@@ -234,17 +233,6 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
           {/* RIGHT: Product Information & Purchase (5 cols) */}
           <div className="lg:col-span-5 space-y-6">
             <div>
-              {/* Rating & Reviews */}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} aria-hidden="true" className="h-4 w-4 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <span className="font-bold text-foreground">{product.rating.toFixed(1)}</span>
-                <span>({product.reviewsCount} reseñas verificadas)</span>
-              </div>
-
               {/* Title & Tagline */}
               <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-extrabold text-foreground tracking-tight">
                 {product.name}

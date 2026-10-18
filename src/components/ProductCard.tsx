@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Star, ShoppingBag, Zap, BatteryCharging, Shield, ArrowUpRight, FileText } from "lucide-react";
+import { ShoppingBag, Zap, BatteryCharging, Shield, ArrowUpRight, FileText } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Product } from "../types/store";
 import { useCart } from "../context/CartContext";
@@ -99,13 +99,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               <Shield aria-hidden="true" className="h-3 w-3 text-solar" />
               {product.waterproof}
             </span>
-          </div>
-
-          {/* Rating */}
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1.5">
-            <Star aria-hidden="true" className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-            <span className="font-bold text-foreground font-mono">{product.rating.toFixed(1)}</span>
-            <span>({product.reviewsCount} reseñas)</span>
           </div>
 
           {/* Product Title */}
