@@ -57,10 +57,10 @@ Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.
       />
 
       <aside
-        className="absolute inset-y-0 right-0 flex max-w-full pl-10 animate-in slide-in-from-right duration-300"
+        className="absolute inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10 animate-in slide-in-from-right duration-300"
         aria-label="Carrito de compras"
       >
-        <div className="flex w-screen max-w-md flex-col bg-background shadow-2xl border-l border-border">
+        <div className="flex w-full sm:w-screen max-w-full sm:max-w-md flex-col bg-background shadow-2xl border-l border-border">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border p-4 sm:p-5 bg-card">
             <div className="flex items-center gap-2">

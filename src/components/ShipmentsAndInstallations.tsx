@@ -216,7 +216,7 @@ export const ShipmentsAndInstallations: React.FC = () => {
             href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20les%20comparto%20la%20foto%20de%20mi%20instalacion%20para%20la%20galeria"
             target="_blank"
             rel="noopener noreferrer"
-            className="pressable inline-flex items-center gap-2 rounded-2xl bg-solar px-6 py-3.5 text-xs sm:text-sm font-bold text-solar-foreground shadow-md hover:bg-solar/95 cursor-pointer shrink-0"
+            className="pressable inline-flex items-center justify-center gap-2 rounded-2xl bg-solar px-4 sm:px-6 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-solar-foreground shadow-md hover:bg-solar/95 cursor-pointer w-full sm:w-auto"
           >
             <MessageCircle className="h-4 w-4" />
             <span>Compartir por WhatsApp (6989-3055)</span>
@@ -228,27 +228,27 @@ export const ShipmentsAndInstallations: React.FC = () => {
       {/* Lightbox / Video Modal */}
       {currentModalItem && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 sm:p-4 backdrop-blur-md animate-in fade-in"
           onClick={() => setSelectedIndex(null)}
         >
           {/* Previous Button */}
           <button
             type="button"
             onClick={handlePrev}
-            className="absolute left-4 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 cursor-pointer backdrop-blur-xs"
+            className="absolute left-2 sm:left-4 z-20 flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 cursor-pointer backdrop-blur-xs"
             aria-label="Anterior"
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
 
           {/* Next Button */}
           <button
             type="button"
             onClick={handleNext}
-            className="absolute right-4 z-20 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 cursor-pointer backdrop-blur-xs"
+            className="absolute right-2 sm:right-4 z-20 flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 cursor-pointer backdrop-blur-xs"
             aria-label="Siguiente"
           >
-            <ChevronRight className="h-6 w-6" />
+            <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
 
           <div

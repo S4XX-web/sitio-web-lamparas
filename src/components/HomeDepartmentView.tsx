@@ -21,43 +21,45 @@ export const HomeDepartmentView: React.FC<HomeDepartmentViewProps> = ({
   return (
     <div className="animate-in fade-in duration-300">
       {/* Top Department Navigation Bar */}
-      <div className="sticky top-[57px] z-30 border-b border-border bg-background/95 backdrop-blur-md px-4 py-3 shadow-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+      <div className="sticky top-[57px] z-30 border-b border-border bg-background/95 backdrop-blur-md px-3 py-2 sm:px-4 sm:py-2.5 shadow-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 sm:gap-3">
           <button
             type="button"
             onClick={onBackToGeneral}
-            className="pressable inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-bold text-foreground hover:border-solar hover:text-solar cursor-pointer transition-colors shadow-xs"
+            className="pressable inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 sm:px-4 py-1.5 text-xs font-bold text-foreground hover:border-solar hover:text-solar cursor-pointer transition-colors shadow-xs shrink-0"
           >
             <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
-            <span>← Volver a la Portada Principal</span>
+            <span className="hidden sm:inline">← Volver a la Portada</span>
+            <span className="sm:hidden font-bold">← Inicio</span>
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-solar">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-solar shrink-0">
               {isFurniture ? (
                 <Armchair aria-hidden="true" className="h-3.5 w-3.5" />
               ) : (
                 <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
               )}
             </span>
-            <span className="text-xs font-black uppercase tracking-wider text-foreground font-mono">
-              Departamento: {isFurniture ? "Muebles & Espacios de Hogar" : "Accesorios & Decoración"}
+            <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-foreground font-mono truncate">
+              {isFurniture ? "Muebles" : "Accesorios"}
             </span>
           </div>
 
           <button
             type="button"
             onClick={onGoToSolar}
-            className="pressable inline-flex items-center gap-1.5 rounded-full bg-solar/15 hover:bg-solar text-foreground hover:text-solar-foreground px-3 py-1 text-xs font-bold transition-colors cursor-pointer"
+            className="pressable inline-flex items-center gap-1.5 rounded-full bg-solar/15 hover:bg-solar text-foreground hover:text-solar-foreground px-2.5 sm:px-3 py-1 text-xs font-bold transition-colors cursor-pointer shrink-0"
           >
             <Sun aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
             <span className="hidden sm:inline">Ver Iluminación Solar</span>
+            <span className="sm:hidden text-xs">Solar</span>
           </button>
         </div>
       </div>
 
       {/* Main Department Showcase Section */}
-      <section className="relative overflow-hidden bg-background py-16 px-4 sm:px-6">
+      <section className="relative overflow-hidden bg-background py-10 sm:py-16 px-4 sm:px-6">
         <div className="mx-auto max-w-6xl">
           {departmentProducts.length > 0 ? (
             <div className="space-y-8">

@@ -32,15 +32,15 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-3xl overflow-hidden rounded-3xl bg-background border border-border shadow-2xl animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-3xl rounded-3xl bg-background border border-border shadow-2xl animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto md:overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           onClick={() => setQuickViewProduct(null)}
-          className="absolute top-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors cursor-pointer"
           aria-label="Cerrar ventana de detalles"
         >
           <X className="h-5 w-5" />
@@ -48,38 +48,38 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
 
         <div className="grid grid-cols-1 md:grid-cols-2">
           {/* Product Image Side */}
-          <div className="relative aspect-square md:aspect-auto h-full bg-black">
+          <div className="relative aspect-[16/9] sm:aspect-square md:aspect-auto md:h-full bg-black shrink-0">
             <img
               src={quickViewProduct.image}
               alt={quickViewProduct.name}
               className="h-full w-full object-cover"
             />
-            <div className="absolute top-4 left-4 flex flex-col gap-1.5">
+            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex flex-col gap-1.5">
               {quickViewProduct.badge && (
-                <span className="rounded-full bg-solar px-3 py-1 text-xs font-bold text-solar-foreground shadow">
+                <span className="rounded-full bg-solar px-3 py-1 text-[11px] sm:text-xs font-bold text-solar-foreground shadow">
                   {quickViewProduct.badge}
                 </span>
               )}
             </div>
             {/* Quick specs chips */}
-            <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2 text-xs text-white">
-              <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2.5 py-1">
-                <Zap aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+            <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-wrap gap-1.5 text-xs text-white">
+              <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
+                <Zap aria-hidden="true" className="h-3 w-3 text-solar" />
                 {quickViewProduct.lumens}
               </span>
-              <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2.5 py-1">
-                <BatteryCharging aria-hidden="true" className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
+                <BatteryCharging aria-hidden="true" className="h-3 w-3 text-emerald-400" />
                 {quickViewProduct.batteryLife}
               </span>
-              <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2.5 py-1">
-                <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-blue-400" />
+              <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
+                <ShieldCheck aria-hidden="true" className="h-3 w-3 text-blue-400" />
                 {quickViewProduct.waterproof}
               </span>
             </div>
           </div>
 
           {/* Details & Actions Side */}
-          <div className="flex flex-col justify-between p-6 sm:p-8 max-h-[85vh] overflow-y-auto">
+          <div className="flex flex-col justify-between p-4 sm:p-6 md:p-8 md:max-h-[85vh] md:overflow-y-auto">
             <div>
               {/* Rating */}
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">

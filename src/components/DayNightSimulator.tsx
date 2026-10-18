@@ -37,7 +37,7 @@ export const DayNightSimulator: React.FC = () => {
         </div>
 
         {/* Interactive Lighting Stage Box */}
-        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border border-border/80 shadow-2xl transition-all duration-700 min-h-[440px] flex flex-col justify-between p-6 sm:p-8">
+        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border border-border/80 shadow-2xl transition-all duration-700 min-h-[380px] sm:min-h-[440px] flex flex-col justify-between p-4 sm:p-8">
           {/* Dynamic Sky Background Reacting to Slider */}
           <div
             className="absolute inset-0 transition-all duration-500 ease-out"
@@ -67,33 +67,33 @@ export const DayNightSimulator: React.FC = () => {
           <div
             className="absolute pointer-events-none transition-all duration-500 ease-out"
             style={{
-              left: `${12 + timeValue * 0.76}%`,
-              top: `${16 + Math.sin((timeValue / 100) * Math.PI) * -8}%`,
+              left: `${8 + timeValue * 0.72}%`,
+              top: `${14 + Math.sin((timeValue / 100) * Math.PI) * -8}%`,
             }}
           >
             {isNight ? (
               <div className="relative flex items-center justify-center">
-                <Moon aria-hidden="true" className="h-14 w-14 text-amber-100 drop-shadow-[0_0_28px_rgba(254,243,199,0.8)]" />
-                <span className="absolute mt-20 whitespace-nowrap rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] font-bold text-amber-200 backdrop-blur-md border border-white/10">
+                <Moon aria-hidden="true" className="h-10 w-10 sm:h-14 sm:w-14 text-amber-100 drop-shadow-[0_0_28px_rgba(254,243,199,0.8)]" />
+                <span className="absolute mt-14 sm:mt-20 whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-amber-200 backdrop-blur-md border border-white/10">
                   Modo Noche Activo
                 </span>
               </div>
             ) : (
               <div className="relative flex items-center justify-center">
-                <Sun aria-hidden="true" className="h-16 w-16 text-amber-400 drop-shadow-[0_0_38px_rgba(251,191,36,0.95)]" />
-                <span className="absolute mt-22 whitespace-nowrap rounded-full bg-white/80 px-2.5 py-0.5 text-[10px] font-bold text-amber-950 backdrop-blur-md shadow-sm">
-                  Células Fotovoltaicas Cargando
+                <Sun aria-hidden="true" className="h-12 w-12 sm:h-16 sm:w-16 text-amber-400 drop-shadow-[0_0_38px_rgba(251,191,36,0.95)]" />
+                <span className="absolute mt-16 sm:mt-22 whitespace-nowrap rounded-full bg-white/80 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-amber-950 backdrop-blur-md shadow-sm">
+                  Cargando Solar
                 </span>
               </div>
             )}
           </div>
 
           {/* Foreground Showcase with Simulated Lamp Fixtures */}
-          <div className="relative z-10 mt-auto flex items-end justify-center gap-6 sm:gap-20 pb-4 pt-16">
+          <div className="relative z-10 mt-auto flex items-end justify-center gap-3 sm:gap-20 pb-2 sm:pb-4 pt-12 sm:pt-16">
             {/* Lamp 1: Farola 1200W */}
             <div className="relative flex flex-col items-center group">
               <div
-                className="absolute -top-14 h-48 w-48 rounded-full blur-3xl pointer-events-none transition-all duration-300"
+                className="absolute -top-14 h-36 w-36 sm:h-48 sm:w-48 rounded-full blur-3xl pointer-events-none transition-all duration-300"
                 style={{
                   backgroundColor: `rgba(245, 158, 11, ${lampBrightness / 110})`,
                   transform: `scale(${0.4 + (lampBrightness / 100) * 1.1})`,
@@ -103,20 +103,20 @@ export const DayNightSimulator: React.FC = () => {
                 src="/products/lampara-1200w/image-1.jpg"
                 alt="Farola LED Solar de Calle Rolinger 1200W"
                 loading="lazy"
-                className="h-32 w-32 sm:h-44 sm:w-44 rounded-2xl object-cover shadow-2xl border border-white/20 transition-all duration-300 group-hover:scale-102"
+                className="h-24 w-24 sm:h-44 sm:w-44 rounded-2xl object-cover shadow-2xl border border-white/20 transition-all duration-300 group-hover:scale-102"
                 style={{
                   filter: `brightness(${0.55 + (lampBrightness / 100) * 0.55}) drop-shadow(0 0 ${lampBrightness * 0.28}px rgba(245, 158, 11, 0.85))`,
                 }}
               />
-              <span className="mt-2.5 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
-                Farola Rolinger 1200W (Radar)
+              <span className="mt-2 rounded-full bg-black/70 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
+                Rolinger 1200W
               </span>
             </div>
 
             {/* Lamp 2: Proyector 300W */}
             <div className="relative flex flex-col items-center group">
               <div
-                className="absolute -top-14 h-48 w-48 rounded-full blur-3xl pointer-events-none transition-all duration-300"
+                className="absolute -top-14 h-36 w-36 sm:h-48 sm:w-48 rounded-full blur-3xl pointer-events-none transition-all duration-300"
                 style={{
                   backgroundColor: `rgba(245, 158, 11, ${lampBrightness / 110})`,
                   transform: `scale(${0.4 + (lampBrightness / 100) * 1.1})`,
@@ -126,46 +126,46 @@ export const DayNightSimulator: React.FC = () => {
                 src="/products/reflector-solar/image-1.jpg"
                 alt="Proyector LED Solar Rolinger 300W IP67"
                 loading="lazy"
-                className="h-32 w-32 sm:h-44 sm:w-44 rounded-2xl object-cover shadow-2xl border border-white/20 transition-all duration-300 group-hover:scale-102"
+                className="h-24 w-24 sm:h-44 sm:w-44 rounded-2xl object-cover shadow-2xl border border-white/20 transition-all duration-300 group-hover:scale-102"
                 style={{
                   filter: `brightness(${0.55 + (lampBrightness / 100) * 0.55}) drop-shadow(0 0 ${lampBrightness * 0.28}px rgba(245, 158, 11, 0.85))`,
                 }}
               />
-              <span className="mt-2.5 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
-                Proyector Rolinger 300W (IP67)
+              <span className="mt-2 rounded-full bg-black/70 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
+                Proyector 300W
               </span>
             </div>
           </div>
 
           {/* Telemetry Glass HUD */}
-          <div className="relative z-20 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-black/65 p-4 sm:p-5 backdrop-blur-xl border border-white/15 text-white shadow-xl">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-solar/20 text-solar">
-                <Clock aria-hidden="true" className="h-5 w-5" />
+          <div className="relative z-20 flex flex-wrap items-center justify-between gap-3 sm:gap-4 rounded-2xl bg-black/65 p-3 sm:p-5 backdrop-blur-xl border border-white/15 text-white shadow-xl">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-solar/20 text-solar shrink-0">
+                <Clock aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5" />
               </span>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/60">
-                  Condición Atmosférica
+                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-white/60">
+                  Condición
                 </p>
                 <p className="text-xs sm:text-sm font-bold text-white font-serif">{getTimeLabel()}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-6 sm:gap-8">
-              <div className="flex items-center gap-2.5">
-                <BatteryCharging aria-hidden="true" className="h-5 w-5 text-emerald-400" />
+            <div className="flex items-center gap-4 sm:gap-8">
+              <div className="flex items-center gap-1.5 sm:gap-2.5">
+                <BatteryCharging aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400 shrink-0" />
                 <div>
-                  <p className="text-[10px] text-white/60 uppercase">Captación Solar</p>
+                  <p className="text-[9px] sm:text-[10px] text-white/60 uppercase">Captación</p>
                   <p className="text-xs sm:text-sm font-extrabold text-emerald-400">{chargeRate}%</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <Flame aria-hidden="true" className="h-5 w-5 text-solar" />
+              <div className="flex items-center gap-1.5 sm:gap-2.5">
+                <Flame aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5 text-solar shrink-0" />
                 <div>
-                  <p className="text-[10px] text-white/60 uppercase">Brillo Nocturno</p>
+                  <p className="text-[9px] sm:text-[10px] text-white/60 uppercase">Brillo</p>
                   <p className="text-xs sm:text-sm font-extrabold text-solar">
-                    {lampBrightness}% <span className="font-normal text-[11px] text-white/60">({lumensOutput} W eq.)</span>
+                    {lampBrightness}% <span className="hidden sm:inline font-normal text-[11px] text-white/60">({lumensOutput} W eq.)</span>
                   </p>
                 </div>
               </div>

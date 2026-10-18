@@ -83,7 +83,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       </div>
 
       {/* Card Content & Action Bar */}
-      <div className="flex flex-1 flex-col justify-between p-5">
+      <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
         <div>
           {/* Quick Specs Badges */}
           <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[10px] font-semibold">
@@ -105,11 +105,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1.5">
             <Star aria-hidden="true" className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
             <span className="font-bold text-foreground font-mono">{product.rating.toFixed(1)}</span>
-            <span>({product.reviewsCount} reseñas verificadas)</span>
+            <span>({product.reviewsCount} reseñas)</span>
           </div>
 
           {/* Product Title */}
-          <h3 className="font-serif text-lg font-bold text-foreground transition-colors group-hover:text-solar line-clamp-1">
+          <h3 className="font-serif text-base sm:text-lg font-bold text-foreground transition-colors group-hover:text-solar line-clamp-1">
             <Link
               to="/producto/$productId"
               params={{ productId: product.id }}
@@ -126,20 +126,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
 
         {/* Pricing & Cart Action */}
-        <div className="mt-5 flex items-center justify-between border-t border-border/70 pt-4">
-          <div className="flex flex-col">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-extrabold text-solar font-serif">
+        <div className="mt-4 sm:mt-5 flex items-center justify-between border-t border-border/70 pt-3 sm:pt-4 gap-2">
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl sm:text-2xl font-extrabold text-solar font-serif">
                 ${product.price.toFixed(2)}
               </span>
-              <span className="text-xs text-muted-foreground font-semibold">USD</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold">USD</span>
             </div>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">
               Despachos a todo Panamá
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -147,7 +147,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 setIsQuotationOpen(true);
               }}
               aria-label={`Cotizar ${product.name} en PDF`}
-              className="pressable rounded-full border border-solar/40 bg-solar/10 hover:bg-solar hover:text-solar-foreground px-2.5 py-1.5 text-xs font-bold text-foreground cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
+              className="pressable rounded-full border border-solar/40 bg-solar/10 hover:bg-solar hover:text-solar-foreground px-2 sm:px-2.5 py-1.5 text-xs font-bold text-foreground cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
               title="Abrir cotizador oficial con este modelo"
             >
               <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar group-hover:text-inherit" />
@@ -158,7 +158,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               type="button"
               onClick={() => addItem(product, 1)}
               aria-label={`Añadir ${product.name} al carrito`}
-              className="pressable flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer"
+              className="pressable flex items-center gap-1 rounded-full bg-primary px-2.5 sm:px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer"
             >
               <ShoppingBag aria-hidden="true" className="h-3.5 w-3.5" />
               <span>Añadir</span>

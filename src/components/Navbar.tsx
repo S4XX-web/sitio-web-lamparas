@@ -30,20 +30,20 @@ export const Navbar: React.FC = () => {
         <button
           type="button"
           onClick={() => handleNavigateDepartment("general")}
-          className="group flex items-center gap-3 cursor-pointer text-left"
+          className="group flex items-center gap-2 sm:gap-3 cursor-pointer text-left min-w-0"
         >
-          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/95 p-0.5 shadow-sm ring-1 ring-border/50 transition-transform duration-300 group-hover:scale-105 overflow-hidden">
+          <div className="relative flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full bg-white/95 p-0.5 shadow-sm ring-1 ring-border/50 transition-transform duration-300 group-hover:scale-105 overflow-hidden">
             <img
               src="/logo-emblem.png"
               alt="Solar y Hogar"
               className="h-full w-full object-contain"
             />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xl sm:text-2xl font-black tracking-tight text-foreground font-serif uppercase leading-none">
+          <div className="flex flex-col min-w-0">
+            <span className="text-base sm:text-2xl font-black tracking-tight text-foreground font-serif uppercase leading-none truncate">
               Solar y Hogar
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-0.5 font-mono">
+            <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-0.5 font-mono truncate">
               Panamá • Energía & Hogar
             </span>
           </div>
@@ -114,13 +114,13 @@ export const Navbar: React.FC = () => {
         </nav>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Day / Night Ambience Toggle with Spring Feedback */}
           <button
             type="button"
             onClick={() => setNightMode((prev) => !prev)}
             aria-label={nightMode ? "Cambiar a modo día" : "Cambiar a modo noche"}
-            className="pressable relative flex h-9 px-3 items-center gap-2 rounded-full border border-border bg-card text-xs font-semibold text-foreground hover:border-solar/60 cursor-pointer shadow-sm"
+            className="pressable relative flex h-9 w-9 sm:w-auto sm:px-3 items-center justify-center gap-2 rounded-full border border-border bg-card text-xs font-semibold text-foreground hover:border-solar/60 cursor-pointer shadow-sm shrink-0"
             title={nightMode ? "Actualmente en modo noche. Clic para ver modo día" : "Actualmente en modo día. Clic para ver modo noche"}
           >
             {nightMode ? (
@@ -136,17 +136,16 @@ export const Navbar: React.FC = () => {
             )}
           </button>
 
-          {/* Cotizador Oficial (PDF) Button - Highly Visible on All Screens */}
+          {/* Cotizador Oficial (PDF) Button - Visible on Desktop */}
           <button
             type="button"
             onClick={() => setIsQuotationOpen(true)}
             aria-label="Abrir Cotizador Oficial en PDF"
-            className="pressable inline-flex h-9.5 items-center gap-1.5 rounded-full border border-solar/40 bg-solar/15 hover:bg-solar text-foreground hover:text-solar-foreground px-3 sm:px-3.5 text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md"
+            className="pressable hidden md:inline-flex h-9.5 items-center gap-1.5 rounded-full border border-solar/40 bg-solar/15 hover:bg-solar text-foreground hover:text-solar-foreground px-3.5 text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md shrink-0"
             title="Generar cotización oficial en PDF para empresas o particulares"
           >
             <FileText aria-hidden="true" className="h-4 w-4 text-solar" />
-            <span className="hidden sm:inline">Cotizador PDF</span>
-            <span className="sm:hidden font-bold">Cotizar</span>
+            <span>Cotizador PDF</span>
           </button>
 
           {/* Cart Trigger Button */}
@@ -154,7 +153,7 @@ export const Navbar: React.FC = () => {
             type="button"
             onClick={() => setIsCartOpen(true)}
             aria-label="Abrir carrito de compras"
-            className="pressable relative flex h-9.5 items-center gap-2 rounded-full bg-primary px-3.5 text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer"
+            className="pressable relative flex h-9 sm:h-9.5 items-center gap-1.5 sm:gap-2 rounded-full bg-primary px-3 sm:px-3.5 text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer shrink-0"
           >
             <ShoppingBag className="h-4 w-4" />
             <span className="hidden sm:inline text-xs font-bold">Carrito</span>
@@ -168,7 +167,7 @@ export const Navbar: React.FC = () => {
           {/* Seller Admin Shortcut Button (Desktop) */}
           <Link
             to="/admin"
-            className="pressable hidden sm:flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-muted-foreground hover:text-amber-500 hover:border-amber-500/50 transition-colors shadow-xs"
+            className="pressable hidden sm:flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-muted-foreground hover:text-amber-500 hover:border-amber-500/50 transition-colors shadow-xs shrink-0"
             title="Panel de Vendedor (PIN)"
           >
             <Lock aria-hidden="true" className="h-3.5 w-3.5" />
@@ -179,7 +178,7 @@ export const Navbar: React.FC = () => {
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
-            className="pressable flex h-9.5 w-9.5 items-center justify-center rounded-full border border-border text-foreground md:hidden hover:bg-secondary cursor-pointer"
+            className="pressable flex h-9 w-9 sm:h-9.5 sm:w-9.5 items-center justify-center rounded-full border border-border text-foreground md:hidden hover:bg-secondary cursor-pointer shrink-0"
           >
             {mobileMenuOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
           </button>

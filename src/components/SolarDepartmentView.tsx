@@ -17,26 +17,27 @@ export const SolarDepartmentView: React.FC<SolarDepartmentViewProps> = ({ onBack
   return (
     <div className="animate-in fade-in duration-300">
       {/* Sticky Department Top Navigation Bar */}
-      <div className="sticky top-[57px] z-30 border-b border-solar/30 bg-background/95 backdrop-blur-md px-4 py-3 shadow-md">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
+      <div className="sticky top-[52px] sm:top-[57px] z-30 border-b border-solar/30 bg-background/95 backdrop-blur-md px-3 py-2 sm:px-4 sm:py-2.5 shadow-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 sm:gap-3">
           <button
             type="button"
             onClick={onBackToGeneral}
-            className="pressable inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-bold text-foreground hover:border-solar hover:text-solar cursor-pointer transition-colors shadow-xs"
+            className="pressable inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 sm:px-4 sm:py-1.5 text-xs font-bold text-foreground hover:border-solar hover:text-solar cursor-pointer transition-colors shadow-xs shrink-0"
           >
             <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
-            <span>← Volver a la Portada Principal</span>
+            <span className="hidden sm:inline">← Volver a la Portada</span>
+            <span className="sm:hidden font-bold">Inicio</span>
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-solar text-solar-foreground">
-              <Sun aria-hidden="true" className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-solar text-solar-foreground shrink-0">
+              <Sun aria-hidden="true" className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             </span>
-            <span className="text-xs font-black uppercase tracking-wider text-foreground font-mono">
-              Departamento: Iluminación & Energía Solar
+            <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-foreground font-mono truncate">
+              <span className="hidden md:inline">Departamento: </span>Iluminación Solar
             </span>
-            <span className="hidden sm:inline-block rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 text-[10px] font-extrabold">
-              3 Modelos en Stock
+            <span className="hidden sm:inline-block rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-extrabold shrink-0">
+              3 Modelos
             </span>
           </div>
 

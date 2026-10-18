@@ -4,7 +4,7 @@ import { useCart } from "../context/CartContext";
 import { PRODUCTS } from "../data/products";
 
 export const MobileQuickBar: React.FC = () => {
-  const { addItem, setIsCartOpen, setIsQuotationOpen, products } = useCart();
+  const { addItem, setIsCartOpen, setIsQuotationOpen, products, activeDepartment } = useCart();
   const [visible, setVisible] = useState(false);
 
   // Star product is first catalog product
@@ -23,10 +23,10 @@ export const MobileQuickBar: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  if (!visible) return null;
+  if (!visible || activeDepartment !== "solar") return null;
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-40 block md:hidden border-t border-border/80 bg-background/95 backdrop-blur-xl px-4 py-2.5 shadow-2xl animate-in slide-in-from-bottom duration-200">
+    <div className="fixed bottom-0 inset-x-0 z-40 block md:hidden border-t border-border/80 bg-background/95 backdrop-blur-xl px-3 py-2 sm:px-4 sm:py-2.5 shadow-2xl animate-in slide-in-from-bottom duration-200">
       <div className="flex items-center justify-between gap-2.5">
         {/* Product Info */}
         <div className="flex items-center gap-2 overflow-hidden">

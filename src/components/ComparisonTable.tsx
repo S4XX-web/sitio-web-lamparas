@@ -89,18 +89,18 @@ export const ComparisonTable: React.FC = () => {
   ];
 
   return (
-    <section id="comparativa" className="border-b border-border bg-card/60 py-24 px-4 sm:px-6 transition-colors duration-500">
+    <section id="comparativa" className="border-b border-border bg-card/60 py-12 sm:py-20 px-3 sm:px-6 transition-colors duration-500">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="text-center mb-10 sm:mb-14">
+        <div className="text-center mb-8 sm:mb-12">
           <span className="glass-chip inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold text-solar-foreground shadow-sm">
             <Zap aria-hidden="true" className="h-3.5 w-3.5" />
             Ficha Comparativa Técnica Oficial
           </span>
-          <h2 className="mt-3 font-serif text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight">
+          <h2 className="mt-3 font-serif text-2xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight">
             ¿Cuál modelo Rolinger se adapta mejor a tu espacio?
           </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base text-muted-foreground leading-relaxed">
+          <p className="mx-auto mt-3 max-w-2xl text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed">
             Compara frente a frente las especificaciones técnicas de nuestra línea Rolinger: Farolas de calle 1200W y 800W con radar, y el Proyector 300W IP67.
           </p>
         </div>
@@ -112,11 +112,11 @@ export const ComparisonTable: React.FC = () => {
         </div>
 
         {/* Comparison Table Container */}
-        <div className="overflow-x-auto rounded-3xl border border-border/80 bg-card shadow-xl">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+        <div className="w-full max-w-full overflow-x-auto min-w-0 overscroll-x-contain rounded-2xl sm:rounded-3xl border border-border/80 bg-card shadow-xl">
+          <table className="w-full text-left border-collapse min-w-[580px] sm:min-w-[700px]">
             <thead>
               <tr className="border-b border-border bg-secondary/50">
-                <th className="sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm p-4 sm:p-5 text-xs font-bold uppercase tracking-wider text-muted-foreground w-1/4">
+                <th className="sticky left-0 z-10 bg-secondary/95 backdrop-blur-sm p-3 sm:p-5 text-xs font-bold uppercase tracking-wider text-muted-foreground w-1/4">
                   Especificación
                 </th>
                 {solarModels.map((prod) => (
@@ -169,14 +169,14 @@ export const ComparisonTable: React.FC = () => {
                   key={idx}
                   className={idx % 2 === 0 ? "bg-card" : "bg-secondary/30"}
                 >
-                  <td className="sticky left-0 z-10 bg-card/95 backdrop-blur-sm p-4 sm:p-5 font-semibold text-foreground flex items-center gap-2">
+                  <td className="sticky left-0 z-10 bg-card/95 backdrop-blur-sm p-3 sm:p-5 font-semibold text-foreground flex items-center gap-2">
                     <row.icon aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
                     <span>{row.feature}</span>
                   </td>
                   {row.values.map((val, vIdx) => (
                     <td
                       key={vIdx}
-                      className="p-4 sm:p-5 text-center text-muted-foreground border-l border-border/60 font-medium leading-relaxed"
+                      className="p-3 sm:p-5 text-center text-muted-foreground border-l border-border/60 font-medium leading-relaxed"
                     >
                       {val}
                     </td>

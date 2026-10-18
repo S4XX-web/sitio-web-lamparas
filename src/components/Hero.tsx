@@ -177,39 +177,39 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
                 transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
                 transition: "transform 180ms ease-out",
               }}
-              className="relative overflow-hidden rounded-3xl border border-white/20 bg-black/50 p-6 backdrop-blur-2xl shadow-2xl text-white"
+              className="relative overflow-hidden rounded-3xl border border-white/20 bg-black/50 p-4 sm:p-6 backdrop-blur-2xl shadow-2xl text-white"
             >
               {/* Variant Selector Tabs */}
-              <div className="flex rounded-2xl bg-white/10 p-1 mb-5">
+              <div className="flex rounded-2xl bg-white/10 p-1 mb-4 sm:mb-5 gap-1">
                 {products
                   .filter((p) => p.department === "solar" || !p.department)
                   .map((prod) => {
                     const isSelected = prod.id === selectedProductId;
-                    const shortName = prod.badge || (prod.id.includes("1200w")
+                    const shortName = prod.id.includes("1200w")
                       ? "1200W"
                       : prod.id.includes("800w")
                       ? "800W"
-                      : "300W");
+                      : "300W";
 
                     return (
-                    <button
-                      key={prod.id}
-                      type="button"
-                      onClick={() => setSelectedProductId(prod.id)}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-solar text-solar-foreground shadow-md"
-                          : "text-white/70 hover:text-white"
-                      }`}
-                    >
-                      {shortName} (${prod.price.toFixed(0)})
-                    </button>
-                  );
-                })}
+                      <button
+                        key={prod.id}
+                        type="button"
+                        onClick={() => setSelectedProductId(prod.id)}
+                        className={`flex-1 py-1.5 px-1 text-center text-xs font-bold rounded-xl transition-all cursor-pointer truncate ${
+                          isSelected
+                            ? "bg-solar text-solar-foreground shadow-md"
+                            : "text-white/70 hover:text-white"
+                        }`}
+                      >
+                        {shortName} (${prod.price.toFixed(0)})
+                      </button>
+                    );
+                  })}
               </div>
 
               {/* Product Visual Presentation */}
-              <div className="relative h-60 w-full overflow-hidden rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center p-3">
+              <div className="relative h-52 sm:h-60 w-full overflow-hidden rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center p-3">
                 <img
                   src={currentProduct.image}
                   alt={currentProduct.name}
@@ -225,7 +225,7 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
 
               {/* Product Meta & Pricing */}
               <div className="mt-4">
-                <h3 className="font-serif text-lg font-bold text-white line-clamp-1">
+                <h3 className="font-serif text-base sm:text-lg font-bold text-white line-clamp-1">
                   {currentProduct.name}
                 </h3>
                 <p className="text-xs text-white/70 line-clamp-1 mt-0.5">
@@ -234,17 +234,17 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
 
                 <div className="mt-3 flex items-baseline justify-between border-t border-white/10 pt-3">
                   <div>
-                    <span className="text-2xl font-black text-solar font-serif">
+                    <span className="text-xl sm:text-2xl font-black text-solar font-serif">
                       ${currentProduct.price.toFixed(2)} USD
                     </span>
                   </div>
-                  <span className="text-[11px] font-bold text-emerald-400 bg-emerald-400/10 px-2.5 py-0.5 rounded-full">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 bg-emerald-400/10 px-2 sm:px-2.5 py-0.5 rounded-full">
                     Despachos a todo Panamá
                   </span>
                 </div>
 
                 {/* Instant Actions */}
-                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => addItem(currentProduct, 1)}
@@ -260,7 +260,7 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
                     className="pressable flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 px-3 text-xs font-bold text-white shadow-md cursor-pointer"
                   >
                     <MessageCircle aria-hidden="true" className="h-4 w-4" />
-                    <span>Pedir WhatsApp</span>
+                    <span>Pedir por WhatsApp</span>
                   </button>
                 </div>
 

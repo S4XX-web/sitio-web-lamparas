@@ -18,11 +18,27 @@ export const PromoBanner: React.FC = () => {
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-solar text-solar-foreground shrink-0">
             <Truck aria-hidden="true" className="h-3 w-3" />
           </span>
-          <p className="tracking-wide text-[11px] sm:text-xs">
+          {/* Mobile view: single clean line */}
+          <p className="sm:hidden tracking-wide text-[11px] font-semibold flex items-center gap-1.5 flex-wrap justify-center leading-tight">
+            <strong className="text-solar font-bold">DESPACHOS A TODO PANAMÁ</strong>
+            <span>•</span>
+            <a
+              href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20quisiera%20asesoria%20sobre%20sus%20productos"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded bg-black/25 px-1.5 py-0.5 font-mono font-bold text-solar"
+            >
+              <PhoneCall aria-hidden="true" className="h-3 w-3 text-solar" />
+              <span>6989-3055</span>
+            </a>
+          </p>
+
+          {/* Desktop view: full details */}
+          <p className="hidden sm:inline-block tracking-wide text-xs">
             <strong className="text-solar font-bold">DESPACHOS A TODO PANAMÁ:</strong>{" "}
             Retiro en sucursal (Ferguson y Uno Express) o Puerta a Puerta (Servientrega) • Pedidos al{" "}
             <a
-              href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20quisiera%20asesoria%20sobre%20las%20lamparas%20solares"
+              href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20quisiera%20asesoria%20sobre%20sus%20productos"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 rounded bg-black/25 px-2 py-0.5 font-mono font-bold text-solar underline-offset-2 hover:bg-black/40 transition-colors"
@@ -30,7 +46,7 @@ export const PromoBanner: React.FC = () => {
               <PhoneCall aria-hidden="true" className="h-3 w-3 text-solar" />
               <span>6989-3055</span>
             </a>
-            <span className="mx-2 hidden sm:inline text-white/40">•</span>
+            <span className="mx-2 text-white/40">•</span>
             <button
               type="button"
               onClick={() => setIsQuotationOpen(true)}

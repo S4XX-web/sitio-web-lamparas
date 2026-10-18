@@ -255,9 +255,9 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
             </div>
 
             {/* Pricing Section */}
-            <div className="rounded-3xl border border-border bg-card p-5 space-y-2 shadow-sm">
-              <div className="flex items-baseline gap-3">
-                <span className="text-3xl sm:text-4xl font-extrabold text-solar font-serif">
+            <div className="rounded-3xl border border-border bg-card p-4 sm:p-5 space-y-2 shadow-sm">
+              <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
+                <span className="text-2xl sm:text-4xl font-extrabold text-solar font-serif">
                   ${product.price.toFixed(2)} USD
                 </span>
                 <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1 text-xs font-bold">
@@ -268,29 +268,32 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
 
             {/* Quantity Selector & Add to Cart */}
             <div className="space-y-3 pt-2">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center rounded-full border border-border bg-card p-1 shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="pressable flex h-9 w-9 items-center justify-center rounded-full text-foreground hover:bg-secondary font-bold text-sm cursor-pointer"
-                  >
-                    -
-                  </button>
-                  <span className="w-12 text-center font-bold text-sm">{quantity}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQuantity((q) => q + 1)}
-                    className="pressable flex h-9 w-9 items-center justify-center rounded-full text-foreground hover:bg-secondary font-bold text-sm cursor-pointer"
-                  >
-                    +
-                  </button>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-center justify-between sm:justify-start rounded-full border border-border bg-card p-1 shadow-sm shrink-0">
+                  <span className="sm:hidden text-xs font-semibold px-3 text-muted-foreground">Cantidad:</span>
+                  <div className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="pressable flex h-9 w-9 items-center justify-center rounded-full text-foreground hover:bg-secondary font-bold text-sm cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <span className="w-10 sm:w-12 text-center font-bold text-sm">{quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => q + 1)}
+                      className="pressable flex h-9 w-9 items-center justify-center rounded-full text-foreground hover:bg-secondary font-bold text-sm cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className="pressable flex-1 flex items-center justify-center gap-2.5 rounded-full bg-primary hover:bg-primary/95 text-primary-foreground py-3.5 px-6 font-bold text-sm sm:text-base shadow-lg cursor-pointer"
+                  className="pressable flex-1 flex items-center justify-center gap-2.5 rounded-full bg-primary hover:bg-primary/95 text-primary-foreground py-3 sm:py-3.5 px-6 font-bold text-sm sm:text-base shadow-lg cursor-pointer"
                 >
                   <ShoppingBag aria-hidden="true" className="h-5 w-5" />
                   <span>Añadir al Carrito</span>
