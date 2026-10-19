@@ -427,66 +427,114 @@ Instrucciones:
     }
   };
 
-  // Subir imagen: si Supabase está activo sube al storage en la nube, si no guarda localmente
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isGallery = false) => {
-    const file = e.target.files?.[0];
-    if (!file || !editingProduct) return;
+  // Subir una o múltiples fotos a la galería (Nube o local)
+  const handleMultipleImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !editingProduct) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("La imagen supera los 10MB. Selecciona una imagen más comprimida.");
-      return;
+    const oversized = files.filter((f) => f.size > 10 * 1024 * 1024);
+    if (oversized.length > 0) {
+      toast.warning(`${oversized.length} imagen(es) superan 10MB. Te recomendamos comprimirlas.`);
     }
 
+    const validFiles = files.filter((f) => f.size <= 10 * 1024 * 1024);
+    if (!validFiles.length) return;
+
     setIsUploadingImage(true);
-    const toastId = toast.loading("Subiendo imagen...");
+    const toastId = toast.loading(`Subiendo ${validFiles.length} imagen(es)...`);
 
     try {
-      let finalUrl = "";
+      const uploadedUrls: string[] = [];
 
-      // 1. Si Supabase está conectado, subimos al bucket 'products'
-      if (isSupabaseConfigured()) {
-        const uploadRes = await uploadImageToSupabase(file, editingProduct.id || "producto");
-        if (uploadRes && uploadRes.url) {
-          finalUrl = uploadRes.url;
-          toast.success("Foto subida a la nube (Supabase Storage) con éxito", { id: toastId });
-        } else if (uploadRes?.error) {
-          console.warn("Fallo en Supabase Storage, usando respaldo:", uploadRes.error);
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
+        let fileUrl = "";
+
+        // 1. Si Supabase está conectado, subimos a la nube
+        if (isSupabaseConfigured()) {
+          const uploadRes = await uploadImageToSupabase(file, editingProduct.id || "producto");
+          if (uploadRes && uploadRes.url) {
+            fileUrl = uploadRes.url;
+          } else if (uploadRes?.error) {
+            console.warn("Fallo subiendo archivo a Supabase:", uploadRes.error);
+          }
         }
+
+        // 2. Si no hay Supabase o falló la subida remota, convertimos a Base64 local
+        if (!fileUrl) {
+          fileUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
+
+        uploadedUrls.push(fileUrl);
       }
 
-      // 2. Si no hay Supabase o falló la subida remota, convertimos a Base64 local
-      if (!finalUrl) {
-        finalUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        toast.success("Foto cargada localmente", { id: toastId });
-      }
+      setEditingProduct((prev) => {
+        if (!prev) return null;
+        const currentGallery =
+          prev.images && prev.images.length > 0
+            ? prev.images
+            : prev.image && prev.image.trim()
+            ? [prev.image]
+            : [];
 
-      if (isGallery) {
-        setEditingProduct((prev) =>
-          prev ? { ...prev, images: [...(prev.images || []), finalUrl] } : null
-        );
-      } else {
-        setEditingProduct((prev) =>
-          prev
-            ? {
-                ...prev,
-                image: finalUrl,
-                images: prev.images?.length ? [finalUrl, ...prev.images.slice(1)] : [finalUrl],
-              }
-            : null
-        );
-      }
+        const nextGallery = [...currentGallery, ...uploadedUrls];
+        const nextCover = prev.image && prev.image.trim() ? prev.image : uploadedUrls[0] || "";
+
+        return {
+          ...prev,
+          image: nextCover,
+          images: nextGallery,
+        };
+      });
+
+      toast.success(`¡${uploadedUrls.length} foto(s) agregada(s) con éxito!`, { id: toastId });
     } catch (err: any) {
       console.error(err);
-      toast.error("Error al procesar la imagen", { id: toastId, description: err?.message });
+      toast.error("Error al subir las imágenes", { id: toastId, description: err?.message });
     } finally {
       setIsUploadingImage(false);
       if (e.target) e.target.value = "";
     }
+  };
+
+  // Establecer una foto existente como portada principal
+  const handleSetCoverImage = (imgUrl: string) => {
+    if (!editingProduct) return;
+    setEditingProduct({
+      ...editingProduct,
+      image: imgUrl,
+    });
+    toast.info("Foto asignada como portada");
+  };
+
+  // Eliminar una foto de la galería
+  const handleRemoveGalleryImage = (indexToRemove: number) => {
+    if (!editingProduct) return;
+    const currentImages = editingProduct.images?.length
+      ? editingProduct.images
+      : editingProduct.image
+      ? [editingProduct.image]
+      : [];
+
+    const removedUrl = currentImages[indexToRemove];
+    const updatedImages = currentImages.filter((_, idx) => idx !== indexToRemove);
+
+    let nextCover = editingProduct.image;
+    if (removedUrl === editingProduct.image) {
+      nextCover = updatedImages[0] || "";
+    }
+
+    setEditingProduct({
+      ...editingProduct,
+      image: nextCover,
+      images: updatedImages,
+    });
+    toast.warning("Foto eliminada de la galería");
   };
 
   // Guardar y probar conexión con Supabase
@@ -1451,31 +1499,40 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                 </div>
               )}
 
-              {/* Imagen principal y galería */}
-              <div className="space-y-3 p-4 bg-slate-950/70 border border-slate-800/80 rounded-2xl">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Foto Principal del Producto</label>
+              {/* Galería de imágenes (Portada + Fotos adicionales) */}
+              <div className="space-y-4 p-4 bg-slate-950/70 border border-slate-800/80 rounded-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <label className="text-xs font-bold text-white block">
+                      Fotos del Producto ({editingProduct.images?.length || (editingProduct.image ? 1 : 0)})
+                    </label>
+                    <p className="text-[11px] text-slate-400">
+                      Sube varias fotos para que tus clientes vean el producto desde distintos ángulos.
+                    </p>
+                  </div>
+
                   <label
-                    className={`text-xs font-medium inline-flex items-center gap-1 ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all self-start sm:self-auto ${
                       isUploadingImage
-                        ? "text-slate-500 cursor-not-allowed"
-                        : "text-amber-400 hover:text-amber-300 cursor-pointer"
+                        ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                        : "bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 cursor-pointer"
                     }`}
                   >
                     {isUploadingImage ? (
                       <>
                         <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                        <span>Subiendo a la nube...</span>
+                        <span>Subiendo fotos...</span>
                       </>
                     ) : (
                       <>
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Subir foto desde dispositivo {supabaseConnected ? "(Nube)" : ""}</span>
+                        <Upload className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>+ Subir Fotos (Permite varias)</span>
                         <input
                           type="file"
                           accept="image/*"
+                          multiple
                           disabled={isUploadingImage}
-                          onChange={(e) => handleImageUpload(e, false)}
+                          onChange={handleMultipleImagesUpload}
                           className="hidden"
                         />
                       </>
@@ -1483,35 +1540,97 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                   </label>
                 </div>
 
-                <div className="flex gap-3 items-center">
-                  <div className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden flex-shrink-0 flex items-center justify-center bg-slate-950">
-                    {editingProduct.image ? (
-                      <img
-                        src={editingProduct.image}
-                        alt="Vista previa"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.warn("No se pudo cargar la imagen:", editingProduct.image);
-                        }}
-                      />
-                    ) : (
-                      <ImageIcon className="w-6 h-6 text-slate-600" />
-                    )}
+                {/* Grid de miniaturas de la galería */}
+                {(editingProduct.images && editingProduct.images.length > 0) || editingProduct.image ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 pt-1">
+                    {(editingProduct.images?.length
+                      ? editingProduct.images
+                      : editingProduct.image
+                      ? [editingProduct.image]
+                      : []
+                    ).map((imgUrl, idx) => {
+                      const isCover = imgUrl === editingProduct.image;
+                      return (
+                        <div
+                          key={idx}
+                          className={`group relative aspect-square rounded-2xl overflow-hidden border transition-all bg-slate-900 ${
+                            isCover
+                              ? "border-amber-400 ring-2 ring-amber-400/40 shadow-lg shadow-amber-500/15"
+                              : "border-slate-800 hover:border-slate-600"
+                          }`}
+                        >
+                          <img
+                            src={imgUrl}
+                            alt={`Foto ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.warn("No se pudo cargar la imagen:", imgUrl);
+                            }}
+                          />
+
+                          {/* Badge de Portada o Botón para hacer Portada */}
+                          {isCover ? (
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-extrabold text-[10px] shadow-md uppercase tracking-wider">
+                              Portada
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetCoverImage(imgUrl)}
+                              className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 hover:bg-amber-500 hover:text-slate-950 text-white font-semibold text-[10px] shadow opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                              title="Marcar como foto de portada"
+                            >
+                              Hacer Portada
+                            </button>
+                          )}
+
+                          {/* Botón Eliminar Foto */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveGalleryImage(idx)}
+                            className="absolute top-2 right-2 w-6 h-6 rounded-lg bg-red-500/90 hover:bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow cursor-pointer"
+                            title="Eliminar esta foto de la galería"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <div className="absolute bottom-1 right-2 text-[10px] font-mono text-white/70 drop-shadow">
+                            #{idx + 1}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
+                ) : (
+                  <div className="border border-dashed border-slate-800 rounded-2xl p-6 text-center text-slate-500 flex flex-col items-center justify-center gap-2 bg-slate-950/40">
+                    <ImageIcon className="w-8 h-8 text-slate-600" />
+                    <p className="text-xs">Aún no has subido fotos para este producto.</p>
+                    <p className="text-[11px] text-slate-600">
+                      Toca el botón "+ Subir Fotos" para elegir una o varias imágenes desde tu dispositivo.
+                    </p>
+                  </div>
+                )}
+
+                {/* Opción manual de URL de foto principal */}
+                <div className="pt-2 border-t border-slate-800/80">
+                  <label className="text-[11px] text-slate-400 block mb-1">
+                    URL de la foto de portada (automática o manual):
+                  </label>
                   <input
                     type="text"
                     value={editingProduct.image}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newUrl = e.target.value;
                       setEditingProduct({
                         ...editingProduct,
-                        image: e.target.value,
+                        image: newUrl,
                         images: editingProduct.images?.length
-                          ? [e.target.value, ...editingProduct.images.slice(1)]
-                          : [e.target.value],
-                      })
-                    }
-                    placeholder="URL de la foto o pulsa 'Subir foto desde dispositivo'"
-                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                          ? [newUrl, ...editingProduct.images.slice(1)]
+                          : [newUrl],
+                      });
+                    }}
+                    placeholder="URL de la imagen o se asignará automáticamente al subir fotos"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
                   />
                 </div>
               </div>
