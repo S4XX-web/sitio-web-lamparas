@@ -242,8 +242,8 @@ function AdminPage() {
       originalPrice: 50.0,
       rating: 5.0,
       reviewsCount: 1,
-      image: dept === "solar" ? "/products/lampara-1200w/image-1.jpg" : "",
-      images: dept === "solar" ? ["/products/lampara-1200w/image-1.jpg"] : [],
+      image: "",
+      images: [],
       badge: "Nuevo",
       inStock: true,
       lumens: dept === "solar" ? "Alta Potencia" : "",
@@ -432,8 +432,8 @@ Instrucciones:
     const file = e.target.files?.[0];
     if (!file || !editingProduct) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("La imagen supera los 8MB. Selecciona una imagen más comprimida.");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("La imagen supera los 10MB. Selecciona una imagen más comprimida.");
       return;
     }
 
@@ -443,16 +443,18 @@ Instrucciones:
     try {
       let finalUrl = "";
 
-      // Si Supabase está conectado, subimos a la nube
+      // 1. Si Supabase está conectado, subimos al bucket 'products'
       if (isSupabaseConfigured()) {
-        const uploadedUrl = await uploadImageToSupabase(file, editingProduct.id || "producto");
-        if (uploadedUrl) {
-          finalUrl = uploadedUrl;
+        const uploadRes = await uploadImageToSupabase(file, editingProduct.id || "producto");
+        if (uploadRes && uploadRes.url) {
+          finalUrl = uploadRes.url;
           toast.success("Foto subida a la nube (Supabase Storage) con éxito", { id: toastId });
+        } else if (uploadRes?.error) {
+          console.warn("Fallo en Supabase Storage, usando respaldo:", uploadRes.error);
         }
       }
 
-      // Si no hay Supabase o falló la subida remota, convertimos a Base64 local
+      // 2. Si no hay Supabase o falló la subida remota, convertimos a Base64 local
       if (!finalUrl) {
         finalUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -483,6 +485,7 @@ Instrucciones:
       toast.error("Error al procesar la imagen", { id: toastId, description: err?.message });
     } finally {
       setIsUploadingImage(false);
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -1481,15 +1484,19 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                 </div>
 
                 <div className="flex gap-3 items-center">
-                  <div className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden flex-shrink-0">
-                    <img
-                      src={editingProduct.image}
-                      alt="Vista previa"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/products/lampara-1200w/image-1.jpg";
-                      }}
-                    />
+                  <div className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden flex-shrink-0 flex items-center justify-center bg-slate-950">
+                    {editingProduct.image ? (
+                      <img
+                        src={editingProduct.image}
+                        alt="Vista previa"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.warn("No se pudo cargar la imagen:", editingProduct.image);
+                        }}
+                      />
+                    ) : (
+                      <ImageIcon className="w-6 h-6 text-slate-600" />
+                    )}
                   </div>
                   <input
                     type="text"
@@ -1503,7 +1510,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                           : [e.target.value],
                       })
                     }
-                    placeholder="URL de la imagen (ej: /products/lampara-1200w/image-1.jpg o enlace web)"
+                    placeholder="URL de la foto o pulsa 'Subir foto desde dispositivo'"
                     className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                   />
                 </div>

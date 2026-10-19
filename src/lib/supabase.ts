@@ -110,16 +110,18 @@ export async function uploadImageToSupabase(
   }
 
   try {
-    // Generar nombre de archivo único
+    // Generar nombre de archivo único y ruta limpia
     const ext = file.name.split(".").pop() || "jpg";
+    const cleanFolder = folder.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
     const cleanName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
-    const filePath = `${folder}/${cleanName}`;
+    const filePath = `${cleanFolder}/${cleanName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("products")
       .upload(filePath, file, {
+        contentType: file.type || "image/jpeg",
         cacheControl: "31536000",
-        upsert: false,
+        upsert: true,
       });
 
     if (uploadError) {
