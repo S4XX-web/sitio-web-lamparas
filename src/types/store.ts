@@ -14,11 +14,13 @@ export interface Product {
   images: string[];
   badge?: string;
   inStock: boolean;
-  lumens: string;
-  batteryLife: string;
-  waterproof: string;
+  lumens?: string;
+  batteryLife?: string;
+  waterproof?: string;
   description: string;
   features: string[];
+  material?: string;
+  dimensions?: string;
 }
 
 export interface CartItem {

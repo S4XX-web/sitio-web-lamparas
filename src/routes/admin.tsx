@@ -40,7 +40,27 @@ import {
   Tag,
   FileText,
   AlertTriangle,
+  Smartphone,
+  Share2,
+  ClipboardCopy,
+  RefreshCw,
+  Zap,
+  BatteryCharging,
+  Shield,
+  Database,
+  ExternalLink,
+  Cloud,
+  CloudOff,
 } from "lucide-react";
+import { isSolarProduct, getDepartmentLabel } from "../utils/productUtils";
+import {
+  getSupabaseConfig,
+  saveSupabaseConfig,
+  clearSupabaseConfig,
+  isSupabaseConfigured,
+  uploadImageToSupabase,
+} from "../lib/supabase";
+import { fetchLiveCatalogFromSupabase } from "../services/productCatalogService";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -76,11 +96,30 @@ function AdminPage() {
   const [newPinInput, setNewPinInput] = useState<string>("");
   const [confirmPinInput, setConfirmPinInput] = useState<string>("");
 
+  // Modal para sincronizar entre dispositivos (móvil y PC)
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
+  const [syncCodeInput, setSyncCodeInput] = useState<string>("");
+  const [isCopiedCode, setIsCopiedCode] = useState<boolean>(false);
+
+  // Modal y credenciales de Supabase Cloud
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+  const [supabaseUrlInput, setSupabaseUrlInput] = useState<string>("");
+  const [supabaseKeyInput, setSupabaseKeyInput] = useState<string>("");
+  const [supabaseConnected, setSupabaseConnected] = useState<boolean>(isSupabaseConfigured());
+  const [isTestingSupabase, setIsTestingSupabase] = useState<boolean>(false);
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+
   // Precios en edición rápida inline
   const [inlinePrices, setInlinePrices] = useState<Record<string, { price: string; originalPrice: string }>>({});
 
   useEffect(() => {
     setIsAuthenticated(isSellerAuthenticated());
+    const cfg = getSupabaseConfig();
+    if (cfg) {
+      setSupabaseUrlInput(cfg.url);
+      setSupabaseKeyInput(cfg.anonKey);
+      setSupabaseConnected(true);
+    }
   }, []);
 
   // Actualizar inline prices cuando cambian los productos
@@ -189,23 +228,29 @@ function AdminPage() {
 
   // Abrir modal para crear nuevo
   const handleStartCreateNew = () => {
+    const isSolarDept = selectedDeptFilter === "solar" || selectedDeptFilter === "todos";
+    const dept: ProductDepartment = selectedDeptFilter === "muebles" ? "muebles" : selectedDeptFilter === "accesorios" ? "accesorios" : "solar";
+    const cat = dept === "muebles" ? "muebles" : dept === "accesorios" ? "accesorios" : "farolas";
+
     const newTemplate: Product = {
       id: `prod-${Date.now().toString().slice(-6)}`,
       name: "",
       tagline: "",
-      department: "solar",
-      category: "farolas",
+      department: dept,
+      category: cat,
       price: 50.0,
       originalPrice: 50.0,
       rating: 5.0,
       reviewsCount: 1,
-      image: "/products/lampara-1200w/image-1.jpg",
-      images: ["/products/lampara-1200w/image-1.jpg"],
+      image: dept === "solar" ? "/products/lampara-1200w/image-1.jpg" : "",
+      images: dept === "solar" ? ["/products/lampara-1200w/image-1.jpg"] : [],
       badge: "Nuevo",
       inStock: true,
-      lumens: "Alta Potencia",
-      batteryLife: "10-12 Horas",
-      waterproof: "IP66",
+      lumens: dept === "solar" ? "Alta Potencia" : "",
+      batteryLife: dept === "solar" ? "10-12 Horas" : "",
+      waterproof: dept === "solar" ? "IP66" : "",
+      material: "",
+      dimensions: "",
       description: "Descripción detallada del producto...",
       features: ["Característica principal 1", "Característica principal 2"],
     };
@@ -237,6 +282,82 @@ function AdminPage() {
 
     setEditingProduct(null);
     setIsCreatingNew(false);
+  };
+
+  // Copiar código de sincronización para transferir de móvil a PC o viceversa
+  const handleCopySyncCode = () => {
+    try {
+      const code = btoa(unescape(encodeURIComponent(JSON.stringify(products))));
+      navigator.clipboard.writeText(code);
+      setIsCopiedCode(true);
+      toast.success("Código de sincronización copiado", {
+        description: "Pégalo en el panel /admin de tu computador para transferir el catálogo.",
+      });
+      setTimeout(() => setIsCopiedCode(false), 3000);
+    } catch {
+      navigator.clipboard.writeText(JSON.stringify(products));
+      toast.success("Catálogo copiado en texto JSON");
+    }
+  };
+
+  // Enviar respaldo a WhatsApp para abrir en la computadora
+  const handleShareToWhatsApp = () => {
+    const jsonStr = JSON.stringify(products);
+    let code = "";
+    try {
+      code = btoa(unescape(encodeURIComponent(jsonStr)));
+    } catch {
+      code = jsonStr;
+    }
+
+    const message = `*CATALOGO SOLAR Y HOGAR - SINCRONIZACION MULTI-DISPOSITIVO*
+Hola! Aquí tienes el código para transferir los productos a tu computadora:
+
+${code}
+
+Instrucciones:
+1. Abre tu web en la computadora en la ruta /admin
+2. Haz clic en "Sincronizar Dispositivos"
+3. Pega este código y haz clic en "Aplicar y Sincronizar"`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+  };
+
+  // Aplicar código de sincronización pegado desde otro dispositivo
+  const handleApplySyncCode = () => {
+    if (!syncCodeInput.trim()) {
+      toast.error("Pega un código de sincronización primero");
+      return;
+    }
+
+    try {
+      let rawJson = syncCodeInput.trim();
+      // Si está en base64
+      if (!rawJson.startsWith("[") && !rawJson.startsWith("{")) {
+        try {
+          rawJson = decodeURIComponent(escape(atob(rawJson)));
+        } catch {
+          // Si no es base64, continuar
+        }
+      }
+
+      const parsed = JSON.parse(rawJson);
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
+        saveCatalog(parsed);
+        toast.success("¡Catálogo sincronizado con éxito!", {
+          description: `Se han restaurado ${parsed.length} productos en este dispositivo.`,
+        });
+        setIsSyncModalOpen(false);
+        setSyncCodeInput("");
+        setTimeout(() => window.location.reload(), 500);
+      } else {
+        toast.error("El código no contiene un catálogo válido de productos");
+      }
+    } catch (err) {
+      toast.error("Código no válido", {
+        description: "Asegúrate de copiar el código completo generado en el otro dispositivo.",
+      });
+    }
   };
 
   // Exportar catálogo JSON
@@ -306,34 +427,178 @@ function AdminPage() {
     }
   };
 
-  // Subir imagen local a Base64
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isGallery = false) => {
+  // Subir imagen: si Supabase está activo sube al storage en la nube, si no guarda localmente
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isGallery = false) => {
     const file = e.target.files?.[0];
     if (!file || !editingProduct) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("La imagen supera los 2MB. Te recomendamos una imagen más ligera.");
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("La imagen supera los 8MB. Selecciona una imagen más comprimida.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
+    setIsUploadingImage(true);
+    const toastId = toast.loading("Subiendo imagen...");
+
+    try {
+      let finalUrl = "";
+
+      // Si Supabase está conectado, subimos a la nube
+      if (isSupabaseConfigured()) {
+        const uploadedUrl = await uploadImageToSupabase(file, editingProduct.id || "producto");
+        if (uploadedUrl) {
+          finalUrl = uploadedUrl;
+          toast.success("Foto subida a la nube (Supabase Storage) con éxito", { id: toastId });
+        }
+      }
+
+      // Si no hay Supabase o falló la subida remota, convertimos a Base64 local
+      if (!finalUrl) {
+        finalUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        toast.success("Foto cargada localmente", { id: toastId });
+      }
+
       if (isGallery) {
-        setEditingProduct({
-          ...editingProduct,
-          images: [...(editingProduct.images || []), dataUrl],
+        setEditingProduct((prev) =>
+          prev ? { ...prev, images: [...(prev.images || []), finalUrl] } : null
+        );
+      } else {
+        setEditingProduct((prev) =>
+          prev
+            ? {
+                ...prev,
+                image: finalUrl,
+                images: prev.images?.length ? [finalUrl, ...prev.images.slice(1)] : [finalUrl],
+              }
+            : null
+        );
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Error al procesar la imagen", { id: toastId, description: err?.message });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  // Guardar y probar conexión con Supabase
+  const handleSaveSupabase = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanUrl = supabaseUrlInput.trim().replace(/\/+$/, "");
+    const cleanKey = supabaseKeyInput.trim();
+
+    if (!cleanUrl || !cleanKey) {
+      toast.error("Ingresa la URL del proyecto y la anon key de Supabase");
+      return;
+    }
+
+    setIsTestingSupabase(true);
+    const toastId = toast.loading("Verificando conexión con Supabase...");
+
+    try {
+      saveSupabaseConfig(cleanUrl, cleanKey);
+      const liveCatalog = await fetchLiveCatalogFromSupabase();
+
+      if (liveCatalog && liveCatalog.length > 0) {
+        saveCatalog(liveCatalog);
+        setSupabaseConnected(true);
+        toast.success(`¡Conectado exitosamente! Se sincronizaron ${liveCatalog.length} productos en tiempo real.`, {
+          id: toastId,
         });
       } else {
-        setEditingProduct({
-          ...editingProduct,
-          image: dataUrl,
-          images: editingProduct.images?.length ? [dataUrl, ...editingProduct.images.slice(1)] : [dataUrl],
+        setSupabaseConnected(true);
+        toast.success("Conexión con Supabase establecida. Los cambios se sincronizarán al instante.", {
+          id: toastId,
         });
       }
-      toast.success("Foto cargada con éxito");
-    };
-    reader.readAsDataURL(file);
+      setIsSupabaseModalOpen(false);
+      setTimeout(() => window.location.reload(), 500);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Error al conectar con Supabase", {
+        id: toastId,
+        description: err?.message || "Verifica las credenciales y que hayas corrido el script SQL.",
+      });
+    } finally {
+      setIsTestingSupabase(false);
+    }
+  };
+
+  // Desconectar Supabase
+  const handleDisconnectSupabase = () => {
+    if (window.confirm("¿Seguro que deseas desconectar Supabase de este navegador? Volverás al modo de catálogo local.")) {
+      clearSupabaseConfig();
+      setSupabaseConnected(false);
+      setSupabaseUrlInput("");
+      setSupabaseKeyInput("");
+      toast.info("Supabase desconectado.");
+      setTimeout(() => window.location.reload(), 400);
+    }
+  };
+
+  // Copiar esquema SQL de Supabase
+  const handleCopySchemaSql = () => {
+    const sqlScript = `-- 1. Crear tabla de productos
+CREATE TABLE IF NOT EXISTS public.products (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  tagline TEXT DEFAULT '',
+  department TEXT DEFAULT 'solar',
+  category TEXT DEFAULT 'farolas',
+  price NUMERIC NOT NULL DEFAULT 0,
+  original_price NUMERIC DEFAULT 0,
+  rating NUMERIC DEFAULT 5.0,
+  reviews_count INTEGER DEFAULT 0,
+  image TEXT DEFAULT '',
+  images JSONB DEFAULT '[]'::jsonb,
+  badge TEXT DEFAULT '',
+  in_stock BOOLEAN DEFAULT true,
+  lumens TEXT DEFAULT '',
+  battery_life TEXT DEFAULT '',
+  waterproof TEXT DEFAULT '',
+  description TEXT DEFAULT '',
+  features JSONB DEFAULT '[]'::jsonb,
+  material TEXT DEFAULT '',
+  dimensions TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir lectura pública del catálogo" ON public.products;
+CREATE POLICY "Permitir lectura pública del catálogo" ON public.products FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Permitir gestión de productos a vendedores" ON public.products;
+CREATE POLICY "Permitir gestión de productos a vendedores" ON public.products FOR ALL USING (true) WITH CHECK (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'products'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+  END IF;
+END $$;
+
+INSERT INTO storage.buckets (id, name, public) VALUES ('products', 'products', true) ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Imágenes de productos públicas" ON storage.objects;
+CREATE POLICY "Imágenes de productos públicas" ON storage.objects FOR SELECT USING (bucket_id = 'products');
+
+DROP POLICY IF EXISTS "Subida de fotos de productos" ON storage.objects;
+CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'products');`;
+
+    navigator.clipboard.writeText(sqlScript);
+    toast.success("Script SQL copiado al portapapeles", {
+      description: "Pégalo en el SQL Editor de tu proyecto en supabase.com y dale a RUN.",
+    });
   };
 
   // Filtro de productos
@@ -502,6 +767,28 @@ function AdminPage() {
             </Link>
 
             <button
+              onClick={() => setIsSupabaseModalOpen(true)}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${
+                supabaseConnected
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/10"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
+              }`}
+              title="Base de datos y sincronización en la nube"
+            >
+              {supabaseConnected ? (
+                <>
+                  <Cloud className="w-4 h-4 text-emerald-400 animate-pulse" />
+                  <span className="hidden sm:inline">Nube Conectada</span>
+                </>
+              ) : (
+                <>
+                  <Database className="w-4 h-4 text-amber-400" />
+                  <span className="hidden sm:inline">Conectar Nube</span>
+                </>
+              )}
+            </button>
+
+            <button
               onClick={() => setIsChangePinOpen(true)}
               className="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors flex items-center gap-1.5"
               title="Cambiar PIN de seguridad"
@@ -566,6 +853,74 @@ function AdminPage() {
           </div>
         </div>
 
+        {/* Banner de Sincronización Multi-Dispositivo (Nube Supabase o Código) */}
+        {supabaseConnected ? (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-slate-900 to-slate-900 border border-emerald-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <Cloud className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-white text-sm flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Sincronización en Tiempo Real Activa (Supabase Cloud)
+                </span>
+                <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">
+                  Cualquier artículo que agregues, edites o elimines desde tu móvil se actualizará <strong>instantáneamente</strong> en tu PC y para todos los visitantes sin necesidad de recargar.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsSupabaseModalOpen(true)}
+                className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 cursor-pointer"
+              >
+                <Database className="w-4 h-4" />
+                <span>Estado Nube</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-slate-900 to-slate-900 border border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-white text-sm flex items-center gap-1.5">
+                  ¿Quieres que tus artículos se actualicen al instante entre móvil y computadora?
+                </span>
+                <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">
+                  Conecta tu base de datos gratuita en <strong>Supabase</strong> para que cualquier producto subido desde el celular aparezca en la PC al instante en 0 segundos.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsSupabaseModalOpen(true)}
+                className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 cursor-pointer"
+              >
+                <Cloud className="w-4 h-4" />
+                <span>Conectar Nube (Supabase)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsSyncModalOpen(true)}
+                className="w-full md:w-auto px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Transferir manualmente por código"
+              >
+                <Share2 className="w-4 h-4 text-slate-400" />
+                <span className="hidden sm:inline">Transferir Código</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Barra de herramientas y filtros */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           {/* Búsqueda */}
@@ -606,17 +961,27 @@ function AdminPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleStartCreateNew}
-              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               Nuevo Producto
+            </button>
+
+            {/* Botón sincronizar */}
+            <button
+              onClick={() => setIsSyncModalOpen(true)}
+              className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Sincronizar catálogo entre dispositivos"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sincronizar</span>
             </button>
 
             {/* Menú de respaldo */}
             <div className="flex items-center gap-1">
               <button
                 onClick={handleExportJson}
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors"
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
                 title="Descargar respaldo JSON del catálogo"
               >
                 <Download className="w-4 h-4" />
@@ -632,7 +997,7 @@ function AdminPage() {
 
               <button
                 onClick={handleResetCatalog}
-                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-red-500/20 hover:text-red-300 text-slate-400 text-xs font-medium transition-colors"
+                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-red-500/20 hover:text-red-300 text-slate-400 text-xs font-medium transition-colors cursor-pointer"
                 title="Restablecer productos originales de fábrica"
               >
                 <RotateCcw className="w-4 h-4" />
@@ -862,15 +1227,22 @@ function AdminPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Departamento</label>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Departamento *</label>
                   <select
                     value={editingProduct.department || "solar"}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newDept = e.target.value as ProductDepartment;
+                      const isNowSolar = newDept === "solar";
                       setEditingProduct({
                         ...editingProduct,
-                        department: e.target.value as ProductDepartment,
-                      })
-                    }
+                        department: newDept,
+                        lumens: isNowSolar ? (editingProduct.lumens || "Alta Potencia") : "",
+                        batteryLife: isNowSolar ? (editingProduct.batteryLife || "10-12 Horas") : "",
+                        category: isNowSolar
+                          ? (editingProduct.category === "muebles" || editingProduct.category === "accesorios" ? "farolas" : editingProduct.category)
+                          : newDept,
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
                   >
                     <option value="solar">Iluminación Solar</option>
@@ -996,50 +1368,115 @@ function AdminPage() {
                 </div>
               </div>
 
-              {/* Especificaciones rápidas */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-[11px] font-medium text-slate-400 block mb-1">Potencia / Lúmenes</label>
-                  <input
-                    type="text"
-                    value={editingProduct.lumens}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, lumens: e.target.value })}
-                    placeholder="Ej: 1200W • Matriz LED"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
+              {/* Especificaciones: Solares vs Hogar */}
+              {editingProduct.department === "solar" ? (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                    <Sun className="w-4 h-4" />
+                    <span>Especificaciones Exclusivas de Lámparas Solares</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Estos términos de potencia en Watts, batería y tiempo de duración de carga <strong>solo aplican a lámparas solares</strong>:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Potencia en Watts / Lúmenes</label>
+                      <input
+                        type="text"
+                        value={editingProduct.lumens || ""}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, lumens: e.target.value })}
+                        placeholder="Ej: 1200W • Matriz LED"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
 
-                <div>
-                  <label className="text-[11px] font-medium text-slate-400 block mb-1">Batería / Material</label>
-                  <input
-                    type="text"
-                    value={editingProduct.batteryLife}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, batteryLife: e.target.value })}
-                    placeholder="Ej: 10-12h (Radar) / Madera Teca"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Autonomía / Duración de Carga</label>
+                      <input
+                        type="text"
+                        value={editingProduct.batteryLife || ""}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, batteryLife: e.target.value })}
+                        placeholder="Ej: 10 a 12h (Modo Radar)"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
 
-                <div>
-                  <label className="text-[11px] font-medium text-slate-400 block mb-1">Protección / Garantía</label>
-                  <input
-                    type="text"
-                    value={editingProduct.waterproof}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, waterproof: e.target.value })}
-                    placeholder="Ej: IP66 Impermeable / Garantía 1 año"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Protección Intemperie</label>
+                      <input
+                        type="text"
+                        value={editingProduct.waterproof || ""}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, waterproof: e.target.value })}
+                        placeholder="Ej: IP66 Impermeable"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                    <Package className="w-4 h-4" />
+                    <span>Especificaciones de Hogar ({editingProduct.department === "muebles" ? "Muebles" : "Accesorios"})</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Este artículo pertenece al catálogo de hogar. <strong>No mostrará Watts ni duración de batería</strong> en la tienda.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Material / Acabados (Opcional)</label>
+                      <input
+                        type="text"
+                        value={editingProduct.material || ""}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, material: e.target.value })}
+                        placeholder="Ej: Madera Teca, Acero, Ratán sintético..."
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Dimensiones / Formato (Opcional)</label>
+                      <input
+                        type="text"
+                        value={editingProduct.dimensions || ""}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, dimensions: e.target.value })}
+                        placeholder="Ej: 120x60x75 cm / 3 Cuerpos"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Imagen principal y galería */}
               <div className="space-y-3 p-4 bg-slate-950/70 border border-slate-800/80 rounded-2xl">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-300">Foto Principal del Producto</label>
-                  <label className="text-xs text-amber-400 hover:text-amber-300 font-medium cursor-pointer inline-flex items-center gap-1">
-                    <Upload className="w-3.5 h-3.5" />
-                    Subir foto desde dispositivo
-                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
+                  <label
+                    className={`text-xs font-medium inline-flex items-center gap-1 ${
+                      isUploadingImage
+                        ? "text-slate-500 cursor-not-allowed"
+                        : "text-amber-400 hover:text-amber-300 cursor-pointer"
+                    }`}
+                  >
+                    {isUploadingImage ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                        <span>Subiendo a la nube...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Subir foto desde dispositivo {supabaseConnected ? "(Nube)" : ""}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={isUploadingImage}
+                          onChange={(e) => handleImageUpload(e, false)}
+                          className="hidden"
+                        />
+                      </>
+                    )}
                   </label>
                 </div>
 
@@ -1164,6 +1601,302 @@ function AdminPage() {
                   className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold"
                 >
                   Guardar PIN
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* MODAL DE SINCRONIZACIÓN MULTI-DISPOSITIVO (MÓVIL ↔ COMPUTADOR)          */}
+      {/* ---------------------------------------------------------------------- */}
+      {isSyncModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 sm:p-7 shadow-2xl space-y-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Smartphone className="w-5 h-5 text-amber-400" />
+                Sincronización Multi-Dispositivo
+              </h3>
+              <button
+                onClick={() => setIsSyncModalOpen(false)}
+                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-300 leading-relaxed space-y-1.5">
+                <p className="font-bold text-amber-300 flex items-center gap-1.5">
+                  ¿Por qué no salía el artículo creado en el celular al entrar desde el PC?
+                </p>
+                <p className="text-[11px]">
+                  Actualmente la tienda almacena los nuevos artículos en la memoria local (<strong>localStorage</strong>) del navegador de cada dispositivo.
+                  Para transferir tus productos de tu celular a tu computadora (o al revés), usa una de las opciones a continuación:
+                </p>
+              </div>
+
+              {/* Paso 1: Exportar / Compartir desde este dispositivo */}
+              <div className="space-y-2 border border-slate-800 rounded-2xl p-4 bg-slate-950/60">
+                <span className="font-bold text-white text-xs block">
+                  Paso 1: Si estás en el dispositivo con los productos nuevos
+                </span>
+                <p className="text-[11px] text-slate-400">
+                  Copia el código de catálogo o envíatelo a WhatsApp para abrirlo en tu computadora:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleCopySyncCode}
+                    className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <ClipboardCopy className="w-4 h-4 text-amber-400" />
+                    <span>{isCopiedCode ? "¡Código Copiado!" : "Copiar Código"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleShareToWhatsApp}
+                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>Enviar a mi WhatsApp</span>
+                  </button>
+                </div>
+
+                <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>También puedes descargar el archivo de respaldo:</span>
+                  <button
+                    type="button"
+                    onClick={handleExportJson}
+                    className="text-amber-400 hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Descargar .JSON
+                  </button>
+                </div>
+              </div>
+
+              {/* Paso 2: Importar en el otro dispositivo */}
+              <div className="space-y-2 border border-slate-800 rounded-2xl p-4 bg-slate-950/60">
+                <span className="font-bold text-white text-xs block">
+                  Paso 2: Si estás en la computadora (o dispositivo destino)
+                </span>
+                <p className="text-[11px] text-slate-400">
+                  Pega aquí el código que copiaste o recibiste por WhatsApp y pulsa "Aplicar y Sincronizar":
+                </p>
+
+                <textarea
+                  rows={3}
+                  value={syncCodeInput}
+                  onChange={(e) => setSyncCodeInput(e.target.value)}
+                  placeholder="Pega aquí el código de catálogo o el texto JSON..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleApplySyncCode}
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md shadow-amber-500/20"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Aplicar y Sincronizar en este Dispositivo</span>
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+                <span className="text-amber-300 font-bold block">💡 ¿Quieres que aparezca para todos sin sincronizar?</span>
+                <p>
+                  Si nos compartes los datos de tu artículo (Nombre, Precio, fotos y descripción), lo dejamos agregado directamente en el archivo base del catálogo (<code>src/data/products.ts</code>). De esa forma queda grabado de fábrica para todos los visitantes del mundo.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsSyncModalOpen(false)}
+                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* MODAL DE CONEXIÓN A BASE DE DATOS EN LA NUBE (SUPABASE REALTIME)        */}
+      {/* ---------------------------------------------------------------------- */}
+      {isSupabaseModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 sm:p-7 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 my-8">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    Base de Datos en Tiempo Real
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      Supabase Cloud
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Actualización instantánea entre tu móvil, computadora y clientes (0 ms)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSupabaseModalOpen(false)}
+                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Estado actual */}
+            <div
+              className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
+                supabaseConnected
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-3 h-3 rounded-full ${
+                    supabaseConnected ? "bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400" : "bg-amber-400"
+                  }`}
+                />
+                <div>
+                  <span className="font-bold block">
+                    {supabaseConnected ? "Base de Datos Conectada en Tiempo Real" : "Modo Local (Sin sincronización automática)"}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {supabaseConnected
+                      ? "Los productos y fotos que subas se reflejan al instante en cualquier dispositivo."
+                      : "Los productos creados solo viven en este navegador hasta que conectes Supabase."}
+                  </span>
+                </div>
+              </div>
+
+              {supabaseConnected && (
+                <button
+                  type="button"
+                  onClick={handleDisconnectSupabase}
+                  className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-[11px] font-semibold transition-colors"
+                >
+                  Desconectar
+                </button>
+              )}
+            </div>
+
+            {/* Formulario de credenciales */}
+            <form onSubmit={handleSaveSupabase} className="space-y-4">
+              <div className="space-y-3 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
+                <span className="text-xs font-bold text-white block">Credenciales de tu Proyecto Supabase</span>
+
+                <div>
+                  <label className="text-[11px] font-medium text-slate-300 block mb-1">
+                    Project URL (URL del Proyecto) *
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={supabaseUrlInput}
+                    onChange={(e) => setSupabaseUrlInput(e.target.value)}
+                    placeholder="https://abcdefghijklm.supabase.co"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 font-mono focus:outline-none focus:border-emerald-400"
+                  />
+                  <span className="text-[10px] text-slate-500 block mt-1">
+                    La encuentras en Supabase → Project Settings → API → Project URL
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-slate-300 block mb-1">
+                    Anon Public Key (Clave Pública) *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={supabaseKeyInput}
+                    onChange={(e) => setSupabaseKeyInput(e.target.value)}
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 font-mono focus:outline-none focus:border-emerald-400"
+                  />
+                  <span className="text-[10px] text-slate-500 block mt-1">
+                    La encuentras en Supabase → Project Settings → API → Project API keys → <code>anon public</code>
+                  </span>
+                </div>
+              </div>
+
+              {/* Guía rápida en 3 pasos */}
+              <div className="bg-slate-950/40 border border-slate-800/60 rounded-2xl p-4 space-y-2.5 text-xs text-slate-300">
+                <span className="text-white font-bold block text-xs">¿Cómo crear tu base de datos gratis en 2 minutos?</span>
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-400 leading-relaxed">
+                  <li>
+                    Entra a{" "}
+                    <a
+                      href="https://supabase.com"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-emerald-400 hover:underline font-semibold inline-flex items-center gap-0.5"
+                    >
+                      supabase.com <ExternalLink className="w-3 h-3" />
+                    </a>{" "}
+                    y crea un proyecto nuevo (Plan Free gratis).
+                  </li>
+                  <li>
+                    En el menú lateral de Supabase, entra a <strong>SQL Editor</strong>, pulsa <strong>New query</strong> y ejecuta nuestro script:
+                  </li>
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={handleCopySchemaSql}
+                      className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold border border-amber-400/30 flex items-center justify-center gap-2 transition-all cursor-pointer text-xs"
+                    >
+                      <ClipboardCopy className="w-4 h-4" />
+                      Copiar Script SQL Listo (Crea tablas, fotos y tiempo real)
+                    </button>
+                  </div>
+                  <li className="pt-1">
+                    Ve a <strong>Settings → API</strong>, copia tu URL y anon key, pégalas arriba y presiona "Conectar y Probar".
+                  </li>
+                </ol>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsSupabaseModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+                >
+                  Cerrar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isTestingSupabase}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isTestingSupabase ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Conectando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Cloud className="w-4 h-4" />
+                      <span>Conectar y Sincronizar en Tiempo Real</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

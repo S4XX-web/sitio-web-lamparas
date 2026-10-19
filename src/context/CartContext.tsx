@@ -43,6 +43,7 @@ interface CartContextType {
   nightMode: boolean;
   setNightMode: (mode: boolean | ((prev: boolean) => boolean)) => void;
   activeDepartment: "general" | "solar" | "muebles" | "accesorios";
+  setActiveDepartment: (dept: "general" | "solar" | "muebles" | "accesorios") => void;
   isSyncingPrices: boolean;
   syncLivePricesNow: () => Promise<void>;
   lastPriceSyncTime: Date | null;
@@ -106,18 +107,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
-  const handleUpdateProduct = (id: string, updates: Partial<Product>) => {
-    const updated = updateProductInCatalog(id, updates);
+  const handleUpdateProduct = async (id: string, updates: Partial<Product>) => {
+    const updated = await updateProductInCatalog(id, updates);
     setProducts(updated);
   };
 
-  const handleAddProduct = (newProd: Product) => {
-    const updated = addProductToCatalog(newProd);
+  const handleAddProduct = async (newProd: Product) => {
+    const updated = await addProductToCatalog(newProd);
     setProducts(updated);
   };
 
-  const handleDeleteProduct = (id: string) => {
-    const updated = deleteProductFromCatalog(id);
+  const handleDeleteProduct = async (id: string) => {
+    const updated = await deleteProductFromCatalog(id);
     setProducts(updated);
   };
 

@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { X, ShoppingBag, ShieldCheck, Zap, BatteryCharging, Check, MessageCircle, FileText } from "lucide-react";
+import { X, ShoppingBag, ShieldCheck, Zap, BatteryCharging, Check, MessageCircle, FileText, Package } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import { isSolarProduct, getDepartmentLabel } from "../utils/productUtils";
 
 export const ProductQuickViewModal: React.FC = () => {
   const { quickViewProduct, setQuickViewProduct, addItem, setIsQuotationOpen } = useCart();
   const [quantity, setQuantity] = useState(1);
 
   if (!quickViewProduct) return null;
+
+  const isSolar = isSolarProduct(quickViewProduct);
 
   const handleAddToCart = () => {
     addItem(quickViewProduct, quantity);
@@ -20,8 +23,9 @@ export const ProductQuickViewModal: React.FC = () => {
   };
 
   const handleWhatsAppInstant = () => {
-    const message = `*CONSULTA DE LAMPARA - SOLAR Y HOGAR PANAMA*
-Hola equipo de Solar y Hogar, me gustaria ordenar directamente la siguiente lampara:
+    const itemType = isSolar ? "LAMPARA SOLAR" : "ARTICULO";
+    const message = `*CONSULTA DE ${itemType} - SOLAR Y HOGAR PANAMA*
+Hola equipo de Solar y Hogar, me gustaria ordenar directamente:
 - Modelo: ${quickViewProduct.name}
 - Cantidad: ${quantity} unidad(es)
 - Subtotal: $${(quickViewProduct.price * quantity).toFixed(2)} USD
@@ -61,21 +65,44 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
                 </span>
               )}
             </div>
-            {/* Quick specs chips */}
-            <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-wrap gap-1.5 text-xs text-white">
-              <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
-                <Zap aria-hidden="true" className="h-3 w-3 text-solar" />
-                {quickViewProduct.lumens}
-              </span>
-              <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
-                <BatteryCharging aria-hidden="true" className="h-3 w-3 text-emerald-400" />
-                {quickViewProduct.batteryLife}
-              </span>
-              <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
-                <ShieldCheck aria-hidden="true" className="h-3 w-3 text-blue-400" />
-                {quickViewProduct.waterproof}
-              </span>
-            </div>
+
+            {/* Quick specs chips: Solo para lámparas solares */}
+            {isSolar ? (
+              (quickViewProduct.lumens || quickViewProduct.batteryLife || quickViewProduct.waterproof) && (
+                <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-wrap gap-1.5 text-xs text-white">
+                  {quickViewProduct.lumens && (
+                    <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
+                      <Zap aria-hidden="true" className="h-3 w-3 text-solar" />
+                      {quickViewProduct.lumens}
+                    </span>
+                  )}
+                  {quickViewProduct.batteryLife && (
+                    <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
+                      <BatteryCharging aria-hidden="true" className="h-3 w-3 text-emerald-400" />
+                      {quickViewProduct.batteryLife}
+                    </span>
+                  )}
+                  {quickViewProduct.waterproof && (
+                    <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
+                      <ShieldCheck aria-hidden="true" className="h-3 w-3 text-blue-400" />
+                      {quickViewProduct.waterproof}
+                    </span>
+                  )}
+                </div>
+              )
+            ) : (
+              <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-wrap gap-1.5 text-xs text-white">
+                <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2.5 py-0.5 text-[11px]">
+                  <Package aria-hidden="true" className="h-3 w-3 text-solar" />
+                  {getDepartmentLabel(quickViewProduct.department)}
+                </span>
+                {quickViewProduct.material && (
+                  <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2.5 py-0.5 text-[11px]">
+                    {quickViewProduct.material}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Details & Actions Side */}

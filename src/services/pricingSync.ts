@@ -168,7 +168,7 @@ export async function syncPricesFromGoogleSheet(): Promise<LivePricesMap | null>
     if (lines.length < 2) return null;
 
     // Detectar posiciones de columnas por encabezado
-    const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/["']/g, ""));
+    const header = parseCsvLine(lines[0] ?? "").map((h) => h.toLowerCase().replace(/["']/g, ""));
     const idIdx = header.findIndex(
       (h) => h.includes("id") || h.includes("codigo") || h.includes("código") || h.includes("modelo") || h.includes("producto")
     );
@@ -188,7 +188,7 @@ export async function syncPricesFromGoogleSheet(): Promise<LivePricesMap | null>
     const livePrices: LivePricesMap = {};
 
     for (let i = 1; i < lines.length; i++) {
-      const cols = parseCsvLine(lines[i]).map((c) => c.replace(/^["']|["']$/g, ""));
+      const cols = parseCsvLine(lines[i] ?? "").map((c) => c.replace(/^["']|["']$/g, ""));
       if (cols.length === 0 || cols.every((c) => !c.trim())) continue;
 
       // Buscar ID en la columna esperada, o buscar en cualquier columna si no coincide
@@ -221,17 +221,23 @@ export async function syncPricesFromGoogleSheet(): Promise<LivePricesMap | null>
         let inStock: boolean | undefined = undefined;
 
         if (stockIdx >= 0 && cols[stockIdx]) {
-          const val = cols[stockIdx].toLowerCase();
+          const val = cols[stockIdx]?.toLowerCase() || "";
           inStock = val.includes("si") || val.includes("yes") || val === "1" || val.includes("stock") || val.includes("disp");
         }
 
-        livePrices[matchedId] = {
+        const entry: LivePriceEntry = {
           productId: matchedId,
           price: parsedPrice,
-          originalPrice: origPrice && origPrice > parsedPrice ? origPrice : undefined,
-          inStock,
           updatedAt: new Date().toISOString(),
         };
+        if (origPrice && origPrice > parsedPrice) {
+          entry.originalPrice = origPrice;
+        }
+        if (typeof inStock === "boolean") {
+          entry.inStock = inStock;
+        }
+
+        livePrices[matchedId] = entry;
       }
     }
 

@@ -35,7 +35,7 @@ export const ProductCatalog: React.FC = () => {
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.tagline.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.lumens.toLowerCase().includes(searchQuery.toLowerCase());
+        (p.lumens ? p.lumens.toLowerCase().includes(searchQuery.toLowerCase()) : false);
       return matchesCategory && matchesSearch;
     }).sort((a, b) => {
       if (sortBy === "price-asc") return a.price - b.price;

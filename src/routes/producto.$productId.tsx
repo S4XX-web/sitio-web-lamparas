@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Wrench,
   FileText,
+  Package,
 } from "lucide-react";
 import { PRODUCTS } from "../data/products";
 import { useCart } from "../context/CartContext";
@@ -22,6 +23,7 @@ import { PromoBanner } from "../components/PromoBanner";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { ProductCard } from "../components/ProductCard";
+import { isSolarProduct, getDepartmentLabel } from "../utils/productUtils";
 
 export const Route = createFileRoute("/producto/$productId")({
   head: ({ params }) => {
@@ -74,6 +76,7 @@ function ProductDetailPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
+  const isSolar = isSolarProduct(product);
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
 
   const handleNextImage = () => {
@@ -96,8 +99,10 @@ function ProductDetailPage() {
 
   const handleWhatsAppOrder = () => {
     const totalLine = (product.price * quantity).toFixed(2);
+    const itemType = isSolar ? "Lámpara Solar" : "Artículo de Hogar";
     const message = `*CONSULTA DE PEDIDO - SOLAR Y HOGAR PANAMA*
 Hola equipo de Solar y Hogar, me gustaria pedir el siguiente producto:
+- Tipo: ${itemType}
 - Producto: ${product.name}
 - Cantidad: ${quantity} unidad(es)
 - Precio unitario: $${product.price.toFixed(2)} USD
@@ -109,7 +114,9 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
     window.open(`https://wa.me/50769893055?text=${encodeURIComponent(message)}`, "_blank");
   };
 
-  const relatedProducts = products.filter((p) => p.id !== product.id).slice(0, 3);
+  const relatedProducts = products
+    .filter((p) => p.id !== product.id && (isSolar ? isSolarProduct(p) : !isSolarProduct(p) || p.department === product.department))
+    .slice(0, 3);
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-solar/30 selection:text-solar-foreground">
@@ -145,7 +152,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                 className="h-full w-full object-cover transition-all duration-500 ease-out"
               />
 
-              {nightMode && (
+              {isSolar && nightMode && (
                 <div className="absolute inset-0 bg-amber-500/10 pointer-events-none mix-blend-color-dodge transition-opacity duration-700" />
               )}
 
@@ -159,27 +166,34 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                 <span className="rounded-full bg-emerald-600/90 px-3 py-0.5 text-xs font-bold text-white shadow-md self-start">
                   Disponible
                 </span>
+                {!isSolar && (
+                  <span className="rounded-full bg-black/60 px-3 py-0.5 text-xs font-semibold text-white shadow-md self-start">
+                    {getDepartmentLabel(product.department)}
+                  </span>
+                )}
               </div>
 
-              {/* Night View Preview Button */}
-              <button
-                type="button"
-                onClick={() => setNightMode((prev) => !prev)}
-                className="pressable absolute top-4 right-4 flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-white hover:bg-black/80 transition-all shadow-md cursor-pointer"
-                title="Alternar vista de iluminación nocturna"
-              >
-                {nightMode ? (
-                  <>
-                    <Sun aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
-                    <span>Luz Diurna</span>
-                  </>
-                ) : (
-                  <>
-                    <Moon aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
-                    <span>Simular Encendida</span>
-                  </>
-                )}
-              </button>
+              {/* Night View Preview Button: Exclusivo para iluminación solar */}
+              {isSolar && (
+                <button
+                  type="button"
+                  onClick={() => setNightMode((prev) => !prev)}
+                  className="pressable absolute top-4 right-4 flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-white hover:bg-black/80 transition-all shadow-md cursor-pointer"
+                  title="Alternar vista de iluminación nocturna"
+                >
+                  {nightMode ? (
+                    <>
+                      <Sun aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+                      <span>Luz Diurna</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+                      <span>Simular Encendida</span>
+                    </>
+                  )}
+                </button>
+              )}
 
               {/* Prev / Next Carousel Controls */}
               {images.length > 1 && (
@@ -315,50 +329,108 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                 <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>Pago seguro: Yappy (Banco General) o transferencia bancaria ACH</span>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Wrench aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
-                <span>Instalación práctica sin cables (incluye tornillería; requiere herramientas básicas)</span>
-              </div>
+              {isSolar ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Wrench aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
+                  <span>Instalación práctica sin cables (incluye tornillería; requiere herramientas básicas)</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Sparkles aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
+                  <span>Materiales de calidad y durabilidad seleccionados para el hogar</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Shield aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
                 <span>Envíos por Ferguson y Uno Express (sucursal) o Servientrega (puerta a puerta)</span>
               </div>
             </div>
 
-            {/* Quick Specs Grid */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Zap aria-hidden="true" className="h-4 w-4 text-solar" />
-                  Luminosidad
-                </span>
-                <span className="font-bold text-foreground text-sm font-mono">{product.lumens}</span>
-              </div>
+            {/* Quick Specs Grid: EXCLUSIVO PARA LAMPARAS SOLARES */}
+            {isSolar ? (
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                {product.lumens && (
+                  <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <Zap aria-hidden="true" className="h-4 w-4 text-solar" />
+                      Luminosidad / Potencia
+                    </span>
+                    <span className="font-bold text-foreground text-sm font-mono">{product.lumens}</span>
+                  </div>
+                )}
 
-              <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <BatteryCharging aria-hidden="true" className="h-4 w-4 text-emerald-500" />
-                  Autonomía
-                </span>
-                <span className="font-bold text-foreground text-sm font-mono">{product.batteryLife}</span>
-              </div>
+                {product.batteryLife && (
+                  <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <BatteryCharging aria-hidden="true" className="h-4 w-4 text-emerald-500" />
+                      Autonomía / Batería
+                    </span>
+                    <span className="font-bold text-foreground text-sm font-mono">{product.batteryLife}</span>
+                  </div>
+                )}
 
-              <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Shield aria-hidden="true" className="h-4 w-4 text-primary" />
-                  Resistencia
-                </span>
-                <span className="font-bold text-foreground text-sm font-mono">{product.waterproof}</span>
-              </div>
+                {product.waterproof && (
+                  <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <Shield aria-hidden="true" className="h-4 w-4 text-primary" />
+                      Resistencia
+                    </span>
+                    <span className="font-bold text-foreground text-sm font-mono">{product.waterproof}</span>
+                  </div>
+                )}
 
-              <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Sun aria-hidden="true" className="h-4 w-4 text-amber-500" />
-                  Días Nublados
-                </span>
-                <span className="font-bold text-foreground text-sm">40-60% carga (6-8h)</span>
+                <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Sun aria-hidden="true" className="h-4 w-4 text-amber-500" />
+                    Días Nublados
+                  </span>
+                  <span className="font-bold text-foreground text-sm">40-60% carga (6-8h)</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Ficha de Especificaciones para Muebles y Hogar (Sin Watts ni Batería) */
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Package aria-hidden="true" className="h-4 w-4 text-solar" />
+                    Departamento
+                  </span>
+                  <span className="font-bold text-foreground text-sm">
+                    {getDepartmentLabel(product.department)}
+                  </span>
+                </div>
+
+                <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-emerald-500" />
+                    Disponibilidad
+                  </span>
+                  <span className="font-bold text-foreground text-sm">
+                    {product.inStock ? "Disponible para Pedido" : "Agotado Temporalmente"}
+                  </span>
+                </div>
+
+                <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Sparkles aria-hidden="true" className="h-4 w-4 text-primary" />
+                    Material / Acabado
+                  </span>
+                  <span className="font-bold text-foreground text-sm">
+                    {product.material || "Calidad Garantizada"}
+                  </span>
+                </div>
+
+                <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Shield aria-hidden="true" className="h-4 w-4 text-amber-500" />
+                    Garantía & Envíos
+                  </span>
+                  <span className="font-bold text-foreground text-sm">
+                    {product.dimensions || "Despacho a todo Panamá"}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -391,10 +463,12 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="font-serif text-2xl sm:text-3xl font-bold text-foreground">
-                Otras lámparas que te pueden gustar
+                {isSolar ? "Otras lámparas que te pueden gustar" : "Otros productos que te pueden gustar"}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Completa la iluminación exterior de tu propiedad
+                {isSolar
+                  ? "Completa la iluminación exterior de tu propiedad"
+                  : "Descubre más alternativas para transformar tus espacios"}
               </p>
             </div>
             <Link

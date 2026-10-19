@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { ShoppingBag, Zap, BatteryCharging, Shield, ArrowUpRight, FileText } from "lucide-react";
+import { ShoppingBag, Zap, BatteryCharging, Shield, ArrowUpRight, FileText, Package } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Product } from "../types/store";
 import { useCart } from "../context/CartContext";
+import { isSolarProduct, getDepartmentLabel } from "../utils/productUtils";
 
 interface ProductCardProps {
   product: Product;
@@ -13,6 +14,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
 
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
+  const isSolar = isSolarProduct(product);
 
   return (
     <article className="spring-card group relative flex flex-col overflow-hidden rounded-3xl border border-border/70 bg-card text-card-foreground shadow-sm">
@@ -85,21 +87,49 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       {/* Card Content & Action Bar */}
       <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
         <div>
-          {/* Quick Specs Badges */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[10px] font-semibold">
-            <span className="inline-flex items-center gap-1 rounded-md bg-solar/15 text-solar px-2 py-0.5 font-mono">
-              <Zap aria-hidden="true" className="h-3 w-3" />
-              {product.lumens}
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 font-mono">
-              <BatteryCharging aria-hidden="true" className="h-3 w-3" />
-              {product.batteryLife}
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-md bg-secondary text-foreground px-2 py-0.5 font-mono ml-auto">
-              <Shield aria-hidden="true" className="h-3 w-3 text-solar" />
-              {product.waterproof}
-            </span>
-          </div>
+          {/* Quick Specs Badges: EXCLUSIVO PARA LAMPARAS SOLARES */}
+          {isSolar ? (
+            (product.lumens || product.batteryLife || product.waterproof) && (
+              <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[10px] font-semibold">
+                {product.lumens && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-solar/15 text-solar px-2 py-0.5 font-mono">
+                    <Zap aria-hidden="true" className="h-3 w-3" />
+                    {product.lumens}
+                  </span>
+                )}
+                {product.batteryLife && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 font-mono">
+                    <BatteryCharging aria-hidden="true" className="h-3 w-3" />
+                    {product.batteryLife}
+                  </span>
+                )}
+                {product.waterproof && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-secondary text-foreground px-2 py-0.5 font-mono ml-auto">
+                    <Shield aria-hidden="true" className="h-3 w-3 text-solar" />
+                    {product.waterproof}
+                  </span>
+                )}
+              </div>
+            )
+          ) : (
+            /* Badges para Muebles, Hogar y Accesorios (Sin Watts ni Batería) */
+            <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[10px] font-semibold">
+              <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary px-2 py-0.5">
+                <Package aria-hidden="true" className="h-3 w-3" />
+                {getDepartmentLabel(product.department)}
+              </span>
+              {product.material && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-secondary text-foreground px-2 py-0.5">
+                  {product.material}
+                </span>
+              )}
+              {product.waterproof && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-secondary text-foreground px-2 py-0.5 ml-auto">
+                  {product.waterproof}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Product Title */}
           <h3 className="font-serif text-base sm:text-lg font-bold text-foreground transition-colors group-hover:text-solar line-clamp-1">
