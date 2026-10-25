@@ -9,7 +9,8 @@ export const MobileQuickBar: React.FC = () => {
   const [visible, setVisible] = useState(false);
 
   // Star product is first catalog product
-  const starProduct = products[0] || PRODUCTS[0];
+  const starProduct =
+    products.find((p) => p.department === "solar") ?? products[0] ?? PRODUCTS[0];
 
   useEffect(() => {
     const handleScroll = () => {

@@ -106,4 +106,29 @@ export const PRODUCTS: Product[] = [
       "Incluye soporte basculante y tornillos de fijación (requiere herramientas básicas como taladro y destornillador)",
     ],
   },
+  {
+    id: "prod-552302",
+    name: "Organizador Vertical Multiusos para Cocina y Hogar (Con Ruedas)",
+    tagline: "Estantería de fácil uso y armado con rueditas",
+    department: "muebles",
+    category: "muebles",
+    price: 40.0,
+    originalPrice: 50.0,
+    rating: 5,
+    reviewsCount: 1,
+    image:
+      "https://ymfzlfougalbgqkqfaaz.supabase.co/storage/v1/object/public/products/prod-552302/1792444476266-z7ubgf.jpeg",
+    images: [
+      "https://ymfzlfougalbgqkqfaaz.supabase.co/storage/v1/object/public/products/prod-552302/1792444476266-z7ubgf.jpeg",
+      "https://ymfzlfougalbgqkqfaaz.supabase.co/storage/v1/object/public/products/prod-552302/1792444492781-38sh8y.jpeg",
+      "https://ymfzlfougalbgqkqfaaz.supabase.co/storage/v1/object/public/products/prod-552302/1792444493663-5o5mn7.jpeg",
+    ],
+    badge: "Nuevo",
+    inStock: true,
+    waterproof: "IP66",
+    description:
+      "Maximiza el espacio y dale un toque moderno a tu hogar con este organizador multiusos de estilo industrial. Diseñado para ofrecer la máxima funcionalidad, combina estantes sólidos de madera resistente con prácticas cestas de rejilla metálica, permitiéndote mantener todo en orden, visible y al alcance de la mano.",
+    features: ["Característica principal 1", "Característica principal 2"],
+    material: "Acero",
+  },
 ];

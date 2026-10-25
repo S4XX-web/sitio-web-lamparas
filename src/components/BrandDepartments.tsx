@@ -13,6 +13,7 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
 }) => {
   const { products } = useCart();
   const solarCount = products.filter((product) => product.department === "solar").length;
+  const homeCount = products.filter((product) => product.department === "muebles").length;
 
   return (
     <section id="departamentos" className="relative bg-background border-b border-border py-16 px-4 sm:px-6 scroll-mt-20">
@@ -83,9 +84,15 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-foreground">
                   <Armchair aria-hidden="true" className="h-6 w-6 text-solar-ink" />
                 </span>
-                <span className="rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 px-3 py-1 text-[11px] font-extrabold font-mono">
-                  Próximo Lanzamiento 2026
-                </span>
+                {homeCount > 0 ? (
+                  <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-3 py-1 text-[11px] font-black uppercase tracking-wider font-mono">
+                    Disponible ({homeCount} {homeCount === 1 ? "Producto" : "Productos"})
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 px-3 py-1 text-[11px] font-extrabold font-mono">
+                    Próximo Lanzamiento 2026
+                  </span>
+                )}
               </div>
 
               <h3 className="font-serif text-xl font-bold text-foreground">
@@ -113,7 +120,7 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
                 onClick={() => onSelectDepartment?.("muebles")}
                 className="pressable w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 py-3 px-4 text-xs font-bold text-foreground cursor-pointer transition-colors"
               >
-                <span>Ver Avance de Colección</span>
+                <span>{homeCount > 0 ? "Ver Mobiliario y Hogar" : "Ver Avance de Colección"}</span>
                 <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
               </button>
 
