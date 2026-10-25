@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   X,
   FileText,
@@ -13,8 +13,13 @@ import {
   PackagePlus,
 } from "lucide-react";
 import { useCart } from "../context/CartContext";
-import { PRODUCTS } from "../data/products";
 import { generateQuotationPDF } from "../utils/quotationPdf";
+import {
+  applyServerPrices,
+  registerRequest,
+  toRequestItems,
+  type RegisteredRequest,
+} from "../services/requestService";
 import { toast } from "sonner";
 
 function sanitizeField(val: string, maxLen = 100): string {
@@ -37,15 +42,59 @@ export const QuotationModal: React.FC = () => {
   const [clientPhone, setClientPhone] = useState("");
   const [sellerName, setSellerName] = useState("Mabel Hernández");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [quoteCode, setQuoteCode] = useState<string>("");
+  const registeredRef = useRef<{ key: string; data: RegisteredRequest } | null>(null);
+  // Código de respaldo cuando no hay registro en el servidor: deja claro que
+  // el documento no es oficial y no se puede verificar.
+  const localCodeRef = useRef(
+    `BORRADOR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+  );
+
+  // Firma de la cotización actual: si cambia, el código del servidor deja de ser válido.
+  const registrationKey = JSON.stringify({
+    items: items.map((i) => [i.product.id, i.quantity]),
+    client: sanitizeField(clientName, 80),
+    phone: sanitizeField(clientPhone, 30),
+    seller: sanitizeField(sellerName, 60),
+  });
 
   if (!isQuotationOpen) return null;
 
-  const quoteNumber = `COT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  // El número real lo asigna el servidor al registrar la cotización.
+  const quoteNumber =
+    quoteCode && registeredRef.current?.key === registrationKey
+      ? quoteCode
+      : "Se asigna al registrar";
   const todayFormatted = new Date().toLocaleDateString("es-PA", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+
+  /**
+   * Registra la cotización en el servidor. Reutiliza el registro mientras no
+   * cambien los productos ni los datos del cliente. Devuelve null en modo local.
+   */
+  const ensureRegistered = async (): Promise<RegisteredRequest | null> => {
+    if (registeredRef.current?.key === registrationKey) return registeredRef.current.data;
+
+    const request = await registerRequest({
+      kind: "cotizacion",
+      customerName: sanitizeField(clientName, 80) || "Cliente Particular",
+      customerPhone: sanitizeField(clientPhone, 30),
+      notes: {
+        sellerName: sanitizeField(sellerName, 60) || "Mabel Hernández",
+        channel: "portal-web",
+      },
+      items: toRequestItems(items),
+    });
+
+    if (request) {
+      registeredRef.current = { key: registrationKey, data: request };
+      setQuoteCode(request.code);
+    }
+    return request;
+  };
 
   const handleDownloadPDF = async () => {
     if (items.length === 0) {
@@ -56,42 +105,74 @@ export const QuotationModal: React.FC = () => {
 
     try {
       setIsGenerating(true);
+      const request = await ensureRegistered();
+      const finalItems = request ? applyServerPrices(items, request) : items;
+
       await generateQuotationPDF({
         clientName: cleanClient,
         clientPhone: sanitizeField(clientPhone, 30),
         sellerName: sanitizeField(sellerName, 60) || "Mabel Hernández",
-        items,
-        quoteNumber,
+        items: finalItems,
+        quoteNumber: request?.code ?? localCodeRef.current,
       });
-      toast.success("¡Cotización descargada exitosamente en PDF!");
+
+      toast.success(
+        request
+          ? `Cotización ${request.code} registrada y descargada`
+          : "Cotización descargada como BORRADOR (sin registro en el servidor)",
+      );
     } catch (err) {
       console.error(err);
-      toast.error("Error al generar el PDF de cotización");
+      toast.error(
+        err instanceof Error && err.name === "RequestRegistrationError"
+          ? "No se pudo registrar la cotización en el servidor. Revisa tu conexión e intenta de nuevo."
+          : "Error al generar el PDF de cotización",
+      );
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    try {
+      await ensureRegistered();
+    } catch (err) {
+      console.error(err);
+      toast.error("No se pudo registrar la cotización en el servidor.");
+      return;
+    }
     window.print();
   };
 
-  const handleSendWhatsApp = () => {
+  const handleSendWhatsApp = async () => {
     const cleanClient = sanitizeField(clientName, 80) || "Cliente Particular";
     const cleanPhone = sanitizeField(clientPhone, 30);
     const cleanSeller = sanitizeField(sellerName, 60) || "Mabel Hernández";
 
-    const itemsList = items
+    let request: RegisteredRequest | null = null;
+    try {
+      request = await ensureRegistered();
+    } catch (err) {
+      console.error(err);
+      toast.error("No se pudo registrar la cotización en el servidor. Revisa tu conexión e intenta de nuevo.");
+      return;
+    }
+
+    const finalItems = request ? applyServerPrices(items, request) : items;
+    const finalTotal = request ? request.total : total;
+    const finalCode = request?.code ?? localCodeRef.current;
+
+    const itemsList = finalItems
       .map(
         (i) =>
           `- ${i.quantity}x ${i.product.name} (Und: $${i.product.price.toFixed(2)}) = $${(
             i.product.price * i.quantity
-          ).toFixed(2)} USD`
+          ).toFixed(2)} USD`,
       )
       .join("\n");
 
     const message = `*SOLICITUD DE COTIZACION OFICIAL - SOLAR Y HOGAR PANAMA*
-*Cotizacion No.:* ${quoteNumber}
+*Cotizacion No.:* ${finalCode}
 *Fecha:* ${todayFormatted}
 *Cliente / Empresa:* ${cleanClient}
 ${cleanPhone ? `*Telefono:* ${cleanPhone}\n` : ""}*Vendedor de Referencia:* ${cleanSeller}
@@ -99,7 +180,7 @@ ${cleanPhone ? `*Telefono:* ${cleanPhone}\n` : ""}*Vendedor de Referencia:* ${cl
 *LAMPARAS COTIZADAS*
 ${itemsList}
 
-*SUBTOTAL ESTIMADO:* $${total.toFixed(2)} USD
+*SUBTOTAL ESTIMADO:* $${finalTotal.toFixed(2)} USD
 ----------------------------------------
 *Metodos de pago habilitados:*
 - Yappy (Banco General)
@@ -119,7 +200,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
         {/* Top Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-card">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-solar/15 text-solar">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-solar/15 text-solar-ink">
               <FileText aria-hidden="true" className="h-5 w-5" />
             </span>
             <div>
@@ -146,7 +227,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
           <div className="lg:col-span-5 space-y-4">
             <div className="rounded-2xl border border-border bg-card p-4 space-y-3.5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <User aria-hidden="true" className="h-4 w-4 text-solar" />
+                <User aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                 1. Datos del Cliente o Empresa
               </h3>
 
@@ -196,7 +277,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
                     className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-xs text-foreground focus:border-solar focus:outline-none font-medium"
                   />
                 </div>
-                <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                <span className="text-[11px] text-muted-foreground mt-0.5 block">
                   Aparece registrado en el encabezado de la cotización oficial
                 </span>
               </div>
@@ -206,10 +287,10 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
             <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <PackagePlus aria-hidden="true" className="h-4 w-4 text-solar" />
+                  <PackagePlus aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                   <span>2. Lámparas a Cotizar ({items.length})</span>
                 </h3>
-                <span className="text-solar font-mono font-bold text-sm">${total.toFixed(2)} USD</span>
+                <span className="text-solar-ink font-mono font-bold text-sm">${total.toFixed(2)} USD</span>
               </div>
 
               {items.length === 0 ? (
@@ -225,7 +306,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
                       >
                         <div className="min-w-0 flex-1">
                           <p className="font-bold text-foreground truncate">{prod.name}</p>
-                          <p className="text-[11px] text-solar font-semibold">${prod.price.toFixed(2)} USD</p>
+                          <p className="text-[11px] text-solar-ink font-semibold">${prod.price.toFixed(2)} USD</p>
                         </div>
                         <button
                           type="button"
@@ -280,7 +361,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
-                          <span className="font-bold text-solar w-13 text-right">
+                          <span className="font-bold text-solar-ink w-13 text-right">
                             ${(product.price * quantity).toFixed(2)}
                           </span>
                           <button
@@ -299,7 +380,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
 
                   {/* Quick-add additional models button bar */}
                   <div className="pt-2 border-t border-border/60">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
                       + Sumar otro modelo a la cotización:
                     </span>
                     <div className="grid grid-cols-3 gap-1.5">
@@ -310,10 +391,10 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
                           onClick={() => addItem(prod, 1)}
                           className="pressable flex flex-col items-center justify-center p-1.5 rounded-lg border border-border bg-background hover:bg-secondary transition-colors cursor-pointer text-center"
                         >
-                          <span className="text-[10px] font-bold text-foreground truncate w-full">
+                          <span className="text-[11px] font-bold text-foreground truncate w-full">
                             {prod.badge || prod.name} (${prod.price.toFixed(0)})
                           </span>
-                          <span className="text-[9px] text-solar font-semibold">
+                          <span className="text-[11px] text-solar-ink font-semibold">
                             + Añadir
                           </span>
                         </button>
@@ -360,7 +441,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
           <div className="lg:col-span-7 flex flex-col items-center">
             <div className="w-full flex items-center justify-between mb-2 px-1 text-xs text-muted-foreground">
               <span className="font-semibold flex items-center gap-1">
-                <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+                <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-solar-ink" />
                 Vista Previa del Documento Oficial
               </span>
               <span>Formato Carta / A4</span>
@@ -393,19 +474,19 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
                   <h1 className="text-sm sm:text-base font-black text-slate-950 tracking-tight">
                     COTIZACIÓN OFICIAL
                   </h1>
-                  <p className="text-[10px] sm:text-xs font-bold text-blue-900 mt-0.5 font-mono">
+                  <p className="text-[11px] sm:text-xs font-bold text-blue-900 mt-0.5 font-mono">
                     {quoteNumber}
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-slate-600 font-medium mt-1">
+                  <p className="text-[11px] sm:text-[11px] text-slate-600 font-medium mt-1">
                     Fecha: {todayFormatted}
                   </p>
 
                   <div className="mt-2 space-y-0.5">
-                    <p className="text-[10px] sm:text-xs font-bold text-slate-900 truncate">
+                    <p className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">
                       Cliente: <span className="font-extrabold text-[#0F224A]">{sanitizeField(clientName, 80) || "[Nombre del Cliente / Empresa]"}</span>
                     </p>
                     {clientPhone.trim() && (
-                      <p className="text-[9px] sm:text-[10px] text-slate-700 font-medium">
+                      <p className="text-[11px] sm:text-[11px] text-slate-700 font-medium">
                         Contacto: <span className="font-semibold text-slate-900">{sanitizeField(clientPhone, 30)}</span>
                       </p>
                     )}
@@ -419,7 +500,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
                     alt="Solar y Hogar"
                     className="h-12 w-12 sm:h-14 sm:w-14 object-contain rounded-full shadow-sm"
                   />
-                  <span className="text-[9px] sm:text-[10px] font-black text-[#1B4332] tracking-wider mt-1 block">
+                  <span className="text-[11px] sm:text-[11px] font-black text-[#1B4332] tracking-wider mt-1 block">
                     SOLAR Y HOGAR
                   </span>
                   <div className="w-16 h-0.5 bg-[#2D6A4F] my-0.5" />
@@ -427,11 +508,11 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
                   <span className="text-[11px] sm:text-xs font-serif text-[#0F224A] mt-1 block">
                     Vendedor
                   </span>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 block">
+                  <span className="text-[11px] sm:text-[11px] font-bold text-slate-800 block">
                     {sanitizeField(sellerName, 60) || "Mabel Hernández"}
                   </span>
 
-                  <div className="text-[8px] sm:text-[9px] text-slate-600 text-left mt-2 space-y-0.5 leading-tight">
+                  <div className="text-[8px] sm:text-[11px] text-slate-600 text-left mt-2 space-y-0.5 leading-tight">
                     <p>Vía de pago: Yappy</p>
                     <p>Transferencia ACH: Banco General</p>
                   </div>
@@ -442,17 +523,17 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
               <div className="relative z-10 my-4 flex-1 flex flex-col justify-start">
                 <table className="w-full border-collapse text-left">
                   <thead>
-                    <tr className="bg-[#38567A] text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
+                    <tr className="bg-[#38567A] text-white text-[11px] sm:text-[11px] font-bold uppercase tracking-wider">
                       <th className="py-2 px-3 rounded-l">Descripción</th>
                       <th className="py-2 px-2 text-center">Cantidad</th>
                       <th className="py-2 px-2 text-right">Und</th>
                       <th className="py-2 px-3 text-right rounded-r">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="text-[9px] sm:text-[10px]">
+                  <tbody className="text-[11px] sm:text-[11px]">
                     {items.length === 0 ? (
                       <tr className="bg-slate-50 text-slate-400 text-center italic">
-                        <td colSpan={4} className="py-8 text-[10px]">
+                        <td colSpan={4} className="py-8 text-[11px]">
                           Añade lámparas a la izquierda para visualizar el desglose en vivo
                         </td>
                       </tr>
@@ -485,7 +566,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
                 {/* Total Box */}
                 <div className="flex justify-end mt-3">
                   <div className="w-40 sm:w-48 bg-[#38567A] text-white flex items-center justify-between px-3 py-1.5 rounded shadow-sm">
-                    <span className="text-[10px] sm:text-xs font-extrabold tracking-wider">
+                    <span className="text-[11px] sm:text-xs font-extrabold tracking-wider">
                       TOTAL
                     </span>
                     <span className="text-xs sm:text-sm font-black font-mono">
@@ -496,7 +577,7 @@ Hola equipo de Solar y Hogar, les comparto esta cotizacion generada desde su por
               </div>
 
               {/* Sheet Footer */}
-              <div className="relative z-10 pt-2 text-center text-[8px] sm:text-[9px] text-slate-500">
+              <div className="relative z-10 pt-2 text-center text-[8px] sm:text-[11px] text-slate-500">
                 Solar y Hogar Panamá • WhatsApp Servicio al Cliente: 6989-3055 • Despachos a todo Panamá
               </div>
             </div>

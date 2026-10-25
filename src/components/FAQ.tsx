@@ -32,7 +32,7 @@ export const FAQ: React.FC = () => {
   };
 
   return (
-    <section id="faq" className="border-b border-border bg-sand/50 py-20 px-4 sm:px-6">
+    <section id="faq" className="border-b border-border bg-sand/50 py-20 px-4 sm:px-6 scroll-mt-24">
       <div className="mx-auto max-w-4xl">
         <div className="text-center mb-12">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary">
@@ -58,12 +58,12 @@ export const FAQ: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => toggle(idx)}
-                  className="flex w-full items-center justify-between p-4 sm:p-5 text-left font-serif text-sm sm:text-base font-bold text-foreground hover:text-solar transition-colors cursor-pointer"
+                  className="flex w-full items-center justify-between p-4 sm:p-5 text-left font-serif text-sm sm:text-base font-bold text-foreground hover:text-solar-ink transition-colors cursor-pointer"
                 >
                   <span>{faq.q}</span>
                   <ChevronDown
                     aria-hidden="true"
-                    className={`h-4 w-4 text-solar shrink-0 ml-3 transition-transform duration-300 ${
+                    className={`h-4 w-4 text-solar-ink shrink-0 ml-3 transition-transform duration-300 ${
                       isOpen ? "rotate-180" : ""
                     }`}
                   />

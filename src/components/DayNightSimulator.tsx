@@ -74,14 +74,14 @@ export const DayNightSimulator: React.FC = () => {
             {isNight ? (
               <div className="relative flex items-center justify-center">
                 <Moon aria-hidden="true" className="h-10 w-10 sm:h-14 sm:w-14 text-amber-100 drop-shadow-[0_0_28px_rgba(254,243,199,0.8)]" />
-                <span className="absolute mt-14 sm:mt-20 whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-amber-200 backdrop-blur-md border border-white/10">
+                <span className="absolute mt-14 sm:mt-20 whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[11px] sm:text-[11px] font-bold text-amber-200 backdrop-blur-md border border-white/10">
                   Modo Noche Activo
                 </span>
               </div>
             ) : (
               <div className="relative flex items-center justify-center">
                 <Sun aria-hidden="true" className="h-12 w-12 sm:h-16 sm:w-16 text-amber-400 drop-shadow-[0_0_38px_rgba(251,191,36,0.95)]" />
-                <span className="absolute mt-16 sm:mt-22 whitespace-nowrap rounded-full bg-white/80 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-amber-950 backdrop-blur-md shadow-sm">
+                <span className="absolute mt-16 sm:mt-22 whitespace-nowrap rounded-full bg-white/80 px-2 py-0.5 text-[11px] sm:text-[11px] font-bold text-amber-950 backdrop-blur-md shadow-sm">
                   Cargando Solar
                 </span>
               </div>
@@ -108,7 +108,7 @@ export const DayNightSimulator: React.FC = () => {
                   filter: `brightness(${0.55 + (lampBrightness / 100) * 0.55}) drop-shadow(0 0 ${lampBrightness * 0.28}px rgba(245, 158, 11, 0.85))`,
                 }}
               />
-              <span className="mt-2 rounded-full bg-black/70 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
+              <span className="mt-2 rounded-full bg-black/70 px-2 sm:px-3 py-0.5 sm:py-1 text-[11px] sm:text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
                 Rolinger 1200W
               </span>
             </div>
@@ -131,7 +131,7 @@ export const DayNightSimulator: React.FC = () => {
                   filter: `brightness(${0.55 + (lampBrightness / 100) * 0.55}) drop-shadow(0 0 ${lampBrightness * 0.28}px rgba(245, 158, 11, 0.85))`,
                 }}
               />
-              <span className="mt-2 rounded-full bg-black/70 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
+              <span className="mt-2 rounded-full bg-black/70 px-2 sm:px-3 py-0.5 sm:py-1 text-[11px] sm:text-xs font-semibold text-white/95 backdrop-blur-md border border-white/10 shadow-sm text-center">
                 Proyector 300W
               </span>
             </div>
@@ -144,7 +144,7 @@ export const DayNightSimulator: React.FC = () => {
                 <Clock aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5" />
               </span>
               <div>
-                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-white/60">
+                <p className="text-[11px] sm:text-[11px] font-semibold uppercase tracking-wider text-white/60">
                   Condición
                 </p>
                 <p className="text-xs sm:text-sm font-bold text-white font-serif">{getTimeLabel()}</p>
@@ -155,7 +155,7 @@ export const DayNightSimulator: React.FC = () => {
               <div className="flex items-center gap-1.5 sm:gap-2.5">
                 <BatteryCharging aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400 shrink-0" />
                 <div>
-                  <p className="text-[9px] sm:text-[10px] text-white/60 uppercase">Captación</p>
+                  <p className="text-[11px] sm:text-[11px] text-white/60 uppercase">Captación</p>
                   <p className="text-xs sm:text-sm font-extrabold text-emerald-400">{chargeRate}%</p>
                 </div>
               </div>
@@ -163,7 +163,7 @@ export const DayNightSimulator: React.FC = () => {
               <div className="flex items-center gap-1.5 sm:gap-2.5">
                 <Flame aria-hidden="true" className="h-4 w-4 sm:h-5 sm:w-5 text-solar shrink-0" />
                 <div>
-                  <p className="text-[9px] sm:text-[10px] text-white/60 uppercase">Brillo</p>
+                  <p className="text-[11px] sm:text-[11px] text-white/60 uppercase">Brillo</p>
                   <p className="text-xs sm:text-sm font-extrabold text-solar">
                     {lampBrightness}% <span className="hidden sm:inline font-normal text-[11px] text-white/60">({lumensOutput} W eq.)</span>
                   </p>

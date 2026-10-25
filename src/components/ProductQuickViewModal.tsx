@@ -72,7 +72,7 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
                 <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-wrap gap-1.5 text-xs text-white">
                   {quickViewProduct.lumens && (
                     <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[11px]">
-                      <Zap aria-hidden="true" className="h-3 w-3 text-solar" />
+                      <Zap aria-hidden="true" className="h-3 w-3 text-solar-ink" />
                       {quickViewProduct.lumens}
                     </span>
                   )}
@@ -93,7 +93,7 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
             ) : (
               <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-wrap gap-1.5 text-xs text-white">
                 <span className="flex items-center gap-1 rounded-md bg-black/60 backdrop-blur-md px-2.5 py-0.5 text-[11px]">
-                  <Package aria-hidden="true" className="h-3 w-3 text-solar" />
+                  <Package aria-hidden="true" className="h-3 w-3 text-solar-ink" />
                   {getDepartmentLabel(quickViewProduct.department)}
                 </span>
                 {quickViewProduct.material && (
@@ -118,7 +118,7 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
 
               {/* Price */}
               <div className="mt-4 flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold text-solar font-serif">
+                <span className="text-3xl font-extrabold text-solar-ink font-serif">
                   ${quickViewProduct.price.toFixed(2)}
                 </span>
                 <span className="text-sm font-semibold text-muted-foreground">USD</span>
@@ -191,11 +191,11 @@ Me confirman disponibilidad para coordinar el despacho? Muchas gracias.`;
                 onClick={handleQuotationDirect}
                 className="w-full flex items-center justify-center gap-2 rounded-full border-2 border-solar/40 bg-solar/10 hover:bg-solar hover:text-solar-foreground text-foreground px-4 py-2.5 text-xs font-bold transition-all cursor-pointer"
               >
-                <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar group-hover:text-inherit" />
+                <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar-ink group-hover:text-inherit" />
                 <span>Generar Cotización en PDF de este modelo</span>
               </button>
 
-              <p className="text-center text-[10px] text-muted-foreground">
+              <p className="text-center text-[11px] text-muted-foreground">
                 Garantía de calidad • Despachos a todo Panamá
               </p>
             </div>

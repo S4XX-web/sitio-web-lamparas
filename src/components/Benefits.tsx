@@ -3,7 +3,7 @@ import { Sun, BatteryCharging, Leaf, Shield, DollarSign, Wrench, CheckCircle2 } 
 
 export const Benefits: React.FC = () => {
   return (
-    <section id="beneficios" className="border-b border-border bg-sand/60 py-24 px-4 sm:px-6 transition-colors duration-500">
+    <section id="beneficios" className="border-b border-border bg-sand/60 py-24 px-4 sm:px-6 transition-colors duration-500 scroll-mt-24">
       <div className="mx-auto max-w-6xl">
         {/* Section Header */}
         <div className="text-center mb-16">
@@ -25,7 +25,7 @@ export const Benefits: React.FC = () => {
           <div className="md:col-span-2 spring-card rounded-3xl border border-border/80 bg-card p-6 sm:p-8 flex flex-col justify-between shadow-sm">
             <div>
               <div className="flex items-center justify-between mb-4">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-solar/20 text-solar">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-solar/20 text-solar-ink">
                   <DollarSign aria-hidden="true" className="h-6 w-6 text-amber-500" />
                 </span>
                 <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
@@ -98,7 +98,7 @@ export const Benefits: React.FC = () => {
           <div className="spring-card rounded-3xl border border-border/80 bg-card p-6 sm:p-8 flex flex-col justify-between shadow-sm">
             <div>
               <div className="flex items-center justify-between mb-4">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-solar/15 text-solar">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-solar/15 text-solar-ink">
                   <Wrench aria-hidden="true" className="h-6 w-6 text-amber-500" />
                 </span>
                 <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold text-secondary-foreground">
@@ -149,9 +149,9 @@ export const Benefits: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-                  <Sun aria-hidden="true" className="h-6 w-6 text-solar" />
+                  <Sun aria-hidden="true" className="h-6 w-6 text-solar-ink" />
                 </span>
-                <span className="rounded-full bg-solar/15 px-3 py-1 text-[11px] font-bold text-solar">
+                <span className="rounded-full bg-solar/15 px-3 py-1 text-[11px] font-bold text-solar-ink">
                   100% Autónomo
                 </span>
               </div>

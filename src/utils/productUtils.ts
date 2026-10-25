@@ -49,3 +49,27 @@ export function getDepartmentLabel(department?: string): string {
       return "Hogar & Decoración";
   }
 }
+
+/**
+ * Reordena el nombre para que la potencia (800W / 1200W / 300W) quede al
+ * principio. Los modelos de farola solo se diferencian por el vatios, y al
+ * recortar el título a una línea ese dato era justo el que se perdía.
+ *
+ * "Farola LED Solar de Calle Rolinger 1200W" -> "1200W · Farola LED Solar de Calle Rolinger"
+ */
+export function formatProductName(name: string): string {
+  if (!name) return "";
+
+  const matches = [...name.matchAll(/\b(\d{2,4})\s?W\b/gi)];
+  const last = matches[matches.length - 1];
+  if (!last) return name;
+
+  // Solo movemos la potencia si está en la segunda mitad del nombre:
+  // así no tocamos nombres que ya empiezan por ella.
+  const index = last.index ?? 0;
+  if (index < name.length / 2) return name;
+
+  const wattage = last[0].replace(/\s+/g, "");
+  const rest = name.replace(last[0], "").replace(/\s{2,}/g, " ").trim();
+  return rest ? `${wattage} · ${rest}` : name;
+}

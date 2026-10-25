@@ -10,12 +10,14 @@ export const Navbar: React.FC = () => {
     setIsCartOpen,
     setIsQuotationOpen,
     items,
+    products,
     nightMode,
     setNightMode,
     activeDepartment,
     setActiveDepartment,
   } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const solarCount = products.filter((product) => product.department === "solar").length;
 
   const handleNavigateDepartment = (dept: "general" | "solar" | "muebles" | "accesorios") => {
     setActiveDepartment(dept);
@@ -36,28 +38,31 @@ export const Navbar: React.FC = () => {
             <img
               src="/logo-emblem.png"
               alt="Solar y Hogar"
+              width={128}
+              height={128}
+              decoding="async"
               className="h-full w-full object-contain"
             />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-base sm:text-2xl font-black tracking-tight text-foreground font-serif uppercase leading-none truncate">
+            <span className="text-base sm:text-2xl font-extrabold tracking-[0.01em] text-foreground font-serif uppercase leading-none truncate">
               Solar y Hogar
             </span>
-            <span className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-0.5 font-mono truncate">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mt-0.5 font-mono truncate">
               Panamá • Energía & Hogar
             </span>
           </div>
         </button>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-5 text-xs font-semibold uppercase tracking-wider">
+        <nav className="hidden lg:flex items-center gap-4 xl:gap-5 text-xs font-semibold uppercase tracking-wider">
           <button
             type="button"
             onClick={() => handleNavigateDepartment("general")}
             className={`transition-colors cursor-pointer py-1 ${
               activeDepartment === "general"
-                ? "text-solar font-bold border-b-2 border-solar"
-                : "text-foreground/80 hover:text-solar"
+                ? "text-solar-ink font-bold border-b-2 border-solar"
+                : "text-foreground/80 hover:text-solar-ink"
             }`}
           >
             Inicio
@@ -68,14 +73,14 @@ export const Navbar: React.FC = () => {
             onClick={() => handleNavigateDepartment("solar")}
             className={`inline-flex items-center gap-1.5 transition-colors cursor-pointer py-1 ${
               activeDepartment === "solar"
-                ? "text-solar font-bold border-b-2 border-solar"
-                : "text-foreground/80 hover:text-solar"
+                ? "text-solar-ink font-bold border-b-2 border-solar"
+                : "text-foreground/80 hover:text-solar-ink"
             }`}
           >
             <Sun aria-hidden="true" className="h-3.5 w-3.5" />
             <span>Energía Solar</span>
-            <span className="rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 text-[9px] font-bold">
-              3
+            <span className="rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 text-[11px] font-bold">
+              {solarCount}
             </span>
           </button>
 
@@ -84,8 +89,8 @@ export const Navbar: React.FC = () => {
             onClick={() => handleNavigateDepartment("muebles")}
             className={`transition-colors cursor-pointer py-1 ${
               activeDepartment === "muebles"
-                ? "text-solar font-bold border-b-2 border-solar"
-                : "text-foreground/80 hover:text-solar"
+                ? "text-solar-ink font-bold border-b-2 border-solar"
+                : "text-foreground/80 hover:text-solar-ink"
             }`}
           >
             Muebles
@@ -96,20 +101,11 @@ export const Navbar: React.FC = () => {
             onClick={() => handleNavigateDepartment("accesorios")}
             className={`transition-colors cursor-pointer py-1 ${
               activeDepartment === "accesorios"
-                ? "text-solar font-bold border-b-2 border-solar"
-                : "text-foreground/80 hover:text-solar"
+                ? "text-solar-ink font-bold border-b-2 border-solar"
+                : "text-foreground/80 hover:text-solar-ink"
             }`}
           >
             Accesorios
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsQuotationOpen(true)}
-            className="flex items-center gap-1.5 text-foreground/80 hover:text-solar transition-colors cursor-pointer uppercase text-xs font-semibold tracking-wider"
-          >
-            <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
-            <span>Cotizador</span>
           </button>
         </nav>
 
@@ -119,8 +115,8 @@ export const Navbar: React.FC = () => {
           <button
             type="button"
             onClick={() => setNightMode((prev) => !prev)}
-            aria-label={nightMode ? "Cambiar a modo día" : "Cambiar a modo noche"}
-            className="pressable relative flex h-9 w-9 sm:w-auto sm:px-3 items-center justify-center gap-2 rounded-full border border-border bg-card text-xs font-semibold text-foreground hover:border-solar/60 cursor-pointer shadow-sm shrink-0"
+            aria-label={nightMode ? "Modo noche activo. Cambiar a modo día" : "Modo día activo. Cambiar a modo noche"}
+            className="pressable relative flex h-11 w-11 sm:h-9 sm:w-auto items-center justify-center gap-2 rounded-full border border-border bg-card text-xs font-semibold text-foreground hover:border-solar/60 cursor-pointer shadow-sm shrink-0"
             title={nightMode ? "Actualmente en modo noche. Clic para ver modo día" : "Actualmente en modo día. Clic para ver modo noche"}
           >
             {nightMode ? (
@@ -140,11 +136,11 @@ export const Navbar: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsQuotationOpen(true)}
-            aria-label="Abrir Cotizador Oficial en PDF"
+            aria-label="Cotizador PDF: abrir el cotizador oficial"
             className="pressable hidden md:inline-flex h-9.5 items-center gap-1.5 rounded-full border border-solar/40 bg-solar/15 hover:bg-solar text-foreground hover:text-solar-foreground px-3.5 text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md shrink-0"
             title="Generar cotización oficial en PDF para empresas o particulares"
           >
-            <FileText aria-hidden="true" className="h-4 w-4 text-solar" />
+            <FileText aria-hidden="true" className="h-4 w-4 text-solar-ink" />
             <span>Cotizador PDF</span>
           </button>
 
@@ -153,7 +149,7 @@ export const Navbar: React.FC = () => {
             type="button"
             onClick={() => setIsCartOpen(true)}
             aria-label="Abrir carrito de compras"
-            className="pressable relative flex h-9 sm:h-9.5 items-center gap-1.5 sm:gap-2 rounded-full bg-primary px-3 sm:px-3.5 text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer shrink-0"
+            className="pressable relative flex h-11 sm:h-9.5 items-center gap-1.5 sm:gap-2 rounded-full bg-primary px-3 sm:px-3.5 text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer shrink-0"
           >
             <ShoppingBag className="h-4 w-4" />
             <span className="hidden sm:inline text-xs font-bold">Carrito</span>
@@ -167,8 +163,8 @@ export const Navbar: React.FC = () => {
           {/* Seller Admin Shortcut Button (Desktop) */}
           <Link
             to="/admin"
-            className="pressable hidden sm:flex h-9 w-9 items-center justify-center rounded-full border border-border/80 bg-card text-muted-foreground hover:text-amber-500 hover:border-amber-500/50 transition-colors shadow-xs shrink-0"
-            title="Panel de Vendedor (PIN)"
+            className="pressable hidden sm:flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-full border border-border/80 bg-card text-muted-foreground hover:text-amber-500 hover:border-amber-500/50 transition-colors shadow-xs shrink-0"
+            title="Panel de Vendedor (acceso privado)"
           >
             <Lock aria-hidden="true" className="h-3.5 w-3.5" />
           </Link>
@@ -178,7 +174,7 @@ export const Navbar: React.FC = () => {
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
-            className="pressable flex h-9 w-9 sm:h-9.5 sm:w-9.5 items-center justify-center rounded-full border border-border text-foreground md:hidden hover:bg-secondary cursor-pointer shrink-0"
+            className="pressable flex h-11 w-11 sm:h-9.5 sm:w-9.5 items-center justify-center rounded-full border border-border text-foreground lg:hidden hover:bg-secondary cursor-pointer shrink-0"
           >
             {mobileMenuOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
           </button>
@@ -187,12 +183,12 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="border-b border-border bg-background px-4 py-4 md:hidden animate-in slide-in-from-top-2">
+        <div className="border-b border-border bg-background px-4 py-4 lg:hidden animate-in slide-in-from-top-2">
           <nav className="flex flex-col gap-2.5 text-sm font-semibold">
             <button
               type="button"
               onClick={() => handleNavigateDepartment("general")}
-              className={`text-left px-3.5 py-2.5 rounded-xl transition-colors ${
+              className={`text-left px-3.5 py-3 rounded-xl transition-colors ${
                 activeDepartment === "general"
                   ? "bg-solar text-solar-foreground font-bold"
                   : "hover:bg-secondary text-foreground"
@@ -204,32 +200,32 @@ export const Navbar: React.FC = () => {
             <button
               type="button"
               onClick={() => handleNavigateDepartment("solar")}
-              className={`flex items-center justify-between text-left px-3.5 py-2.5 rounded-xl transition-colors ${
+              className={`flex items-center justify-between text-left px-3.5 py-3 rounded-xl transition-colors ${
                 activeDepartment === "solar"
                   ? "bg-solar text-solar-foreground font-bold"
                   : "hover:bg-secondary text-foreground"
               }`}
             >
               <div className="flex items-center gap-2">
-                <Sun aria-hidden="true" className="h-4 w-4 text-solar" />
+                <Sun aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                 <span>Iluminación & Energía Solar</span>
               </div>
-              <span className="rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-bold">
-                3 Modelos
+              <span className="rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[11px] font-bold">
+                {solarCount} {solarCount === 1 ? "Modelo" : "Modelos"}
               </span>
             </button>
 
             <button
               type="button"
               onClick={() => handleNavigateDepartment("muebles")}
-              className={`flex items-center justify-between text-left px-3.5 py-2.5 rounded-xl transition-colors ${
+              className={`flex items-center justify-between text-left px-3.5 py-3 rounded-xl transition-colors ${
                 activeDepartment === "muebles"
                   ? "bg-solar text-solar-foreground font-bold"
                   : "hover:bg-secondary text-foreground"
               }`}
             >
               <span>Muebles & Terraza</span>
-              <span className="rounded-full bg-amber-500/20 text-amber-500 px-2 py-0.5 text-[10px] font-bold">
+              <span className="rounded-full bg-amber-500/20 text-amber-500 px-2 py-0.5 text-[11px] font-bold">
                 Próximamente
               </span>
             </button>
@@ -237,14 +233,14 @@ export const Navbar: React.FC = () => {
             <button
               type="button"
               onClick={() => handleNavigateDepartment("accesorios")}
-              className={`flex items-center justify-between text-left px-3.5 py-2.5 rounded-xl transition-colors ${
+              className={`flex items-center justify-between text-left px-3.5 py-3 rounded-xl transition-colors ${
                 activeDepartment === "accesorios"
                   ? "bg-solar text-solar-foreground font-bold"
                   : "hover:bg-secondary text-foreground"
               }`}
             >
               <span>Accesorios de Hogar</span>
-              <span className="rounded-full bg-amber-500/20 text-amber-500 px-2 py-0.5 text-[10px] font-bold">
+              <span className="rounded-full bg-amber-500/20 text-amber-500 px-2 py-0.5 text-[11px] font-bold">
                 Próximamente
               </span>
             </button>
@@ -255,9 +251,9 @@ export const Navbar: React.FC = () => {
                 setMobileMenuOpen(false);
                 setIsQuotationOpen(true);
               }}
-              className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left bg-solar/15 border border-solar/30 hover:bg-solar hover:text-solar-foreground transition-colors text-xs font-bold text-foreground cursor-pointer"
+              className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left bg-solar/15 border border-solar/30 hover:bg-solar hover:text-solar-foreground transition-colors text-xs font-bold text-foreground cursor-pointer"
             >
-              <FileText aria-hidden="true" className="h-4 w-4 text-solar" />
+              <FileText aria-hidden="true" className="h-4 w-4 text-solar-ink" />
               <span>Generar Cotización Oficial (PDF)</span>
             </button>
 
@@ -285,14 +281,14 @@ export const Navbar: React.FC = () => {
             <Link
               to="/admin"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-dashed border-border/80 text-xs font-semibold text-muted-foreground hover:text-amber-500 hover:border-amber-500/50 transition-colors mt-1"
+              className="flex items-center justify-between px-3.5 py-3 rounded-xl border border-dashed border-border/80 text-xs font-semibold text-muted-foreground hover:text-amber-500 hover:border-amber-500/50 transition-colors mt-1"
             >
               <div className="flex items-center gap-2">
                 <Lock aria-hidden="true" className="h-3.5 w-3.5 text-amber-500" />
                 <span>Panel Privado de Vendedor</span>
               </div>
-              <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded font-mono font-bold">
-                PIN
+              <span className="text-[11px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded font-mono font-bold">
+                PRIVADO
               </span>
             </Link>
           </nav>

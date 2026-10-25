@@ -39,7 +39,7 @@ const LAYERS: Layer[] = [
     specs: "Hasta 50,000 horas de vida útil • Mínima degradación lumínica",
     description:
       "Múltiples módulos LED organizados en paneles direccionales que proyectan un haz uniforme y expansivo de 120° a 140°. Ofrece una visibilidad clara que disuade intrusos y mejora la seguridad perimetral de tu residencia, comercio o finca.",
-    accent: "from-solar/20 to-solar/5 text-solar border-solar/30",
+    accent: "from-solar/20 to-solar/5 text-solar-ink border-solar/30",
   },
   {
     id: "radar",
@@ -90,10 +90,10 @@ export const ProductAnatomy: React.FC = () => {
       {/* Top Meta Badge */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-5 pb-4 border-b border-border/80">
         <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-solar/15 text-solar font-mono text-xs font-black">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-solar/15 text-solar-ink font-mono text-xs font-black">
             {layer.step}
           </span>
-          <span className="text-xs font-bold uppercase tracking-wider text-solar">
+          <span className="text-xs font-bold uppercase tracking-wider text-solar-ink">
             Cómo Está Hecha • Componente {layer.step}
           </span>
         </div>
@@ -115,7 +115,7 @@ export const ProductAnatomy: React.FC = () => {
       {/* Technical Specifications Bento Chips */}
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         <div className="rounded-2xl border border-border/80 bg-secondary/40 p-4 space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
             Material y Construcción
           </span>
           <p className="text-xs font-bold text-foreground">
@@ -124,7 +124,7 @@ export const ProductAnatomy: React.FC = () => {
         </div>
 
         <div className="rounded-2xl border border-border/80 bg-secondary/40 p-4 space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
             Rendimiento Técnico
           </span>
           <p className="text-xs font-bold text-foreground">
@@ -133,9 +133,9 @@ export const ProductAnatomy: React.FC = () => {
         </div>
 
         <div className="sm:col-span-2 rounded-2xl border border-solar/30 bg-solar/10 p-4 flex items-start gap-3">
-          <Sparkles aria-hidden="true" className="h-4 w-4 text-solar shrink-0 mt-0.5" />
+          <Sparkles aria-hidden="true" className="h-4 w-4 text-solar-ink shrink-0 mt-0.5" />
           <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-solar-foreground font-mono">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-solar-foreground font-mono">
               Ventaja en Panamá:
             </span>
             <p className="text-xs font-semibold text-foreground mt-0.5">
@@ -155,7 +155,7 @@ export const ProductAnatomy: React.FC = () => {
             const nextIdx = (currentIdx + 1) % LAYERS.length;
             setActiveLayer(LAYERS[nextIdx]);
           }}
-          className="pressable inline-flex items-center gap-1 font-bold text-solar hover:underline cursor-pointer"
+          className="pressable inline-flex items-center gap-1 font-bold text-solar-ink hover:underline cursor-pointer"
         >
           <span>
             Siguiente componente ({LAYERS[(LAYERS.findIndex((l) => l.id === layer.id) + 1) % LAYERS.length].step})
@@ -228,12 +228,12 @@ export const ProductAnatomy: React.FC = () => {
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Icon
                         aria-hidden="true"
-                        className={`h-4 w-4 transition-colors ${isSelected ? "text-solar" : "text-muted-foreground"}`}
+                        className={`h-4 w-4 transition-colors ${isSelected ? "text-solar-ink" : "text-muted-foreground"}`}
                       />
                       <ChevronDown
                         aria-hidden="true"
                         className={`h-4 w-4 lg:hidden transition-transform duration-200 ${
-                          isSelected ? "rotate-180 text-solar" : "text-muted-foreground"
+                          isSelected ? "rotate-180 text-solar-ink" : "text-muted-foreground"
                         }`}
                       />
                     </div>

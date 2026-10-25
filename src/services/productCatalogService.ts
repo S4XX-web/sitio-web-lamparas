@@ -3,9 +3,6 @@ import { PRODUCTS } from "../data/products";
 import { getSupabase, isSupabaseConfigured } from "../lib/supabase";
 
 const STORAGE_CATALOG_KEY = "solara_seller_catalog_v2";
-const STORAGE_PIN_KEY = "solara_seller_pin_v2";
-const SESSION_AUTH_KEY = "solara_seller_auth_session_v2";
-const DEFAULT_PIN = "2026";
 
 const CATALOG_CHANGE_EVENT = "solara:catalog_changed";
 
@@ -96,8 +93,8 @@ export function saveCatalog(catalog: Product[], broadcast = true): void {
   try {
     localStorage.setItem(STORAGE_CATALOG_KEY, JSON.stringify(catalog));
 
-    PRODUCTS.length = 0;
-    catalog.forEach((item) => PRODUCTS.push(item));
+    // Nota: no se muta el array PRODUCTS. El catálogo estático es inmutable y
+    // sirve solo como semilla/fallback; el estado vive en React y en Supabase.
 
     if (broadcast) {
       window.dispatchEvent(new CustomEvent(CATALOG_CHANGE_EVENT, { detail: catalog }));
@@ -304,43 +301,3 @@ export function subscribeToCatalogChanges(callback: (catalog: Product[]) => void
   };
 }
 
-// ----------------------------------------------------------------------
-// GESTIÓN DE SEGURIDAD Y SESIÓN DEL VENDEDOR
-// ----------------------------------------------------------------------
-
-export function getStoredPin(): string {
-  if (typeof window === "undefined") return DEFAULT_PIN;
-  return localStorage.getItem(STORAGE_PIN_KEY) || DEFAULT_PIN;
-}
-
-export function verifyPin(pin: string): boolean {
-  const currentPin = getStoredPin();
-  return pin.trim() === currentPin.trim();
-}
-
-export function changeSellerPin(oldPin: string, newPin: string): { success: boolean; error?: string } {
-  if (!verifyPin(oldPin)) {
-    return { success: false, error: "El PIN actual es incorrecto" };
-  }
-  if (!newPin || newPin.trim().length < 4) {
-    return { success: false, error: "El nuevo PIN debe tener al menos 4 caracteres" };
-  }
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_PIN_KEY, newPin.trim());
-  }
-  return { success: true };
-}
-
-export function isSellerAuthenticated(): boolean {
-  if (typeof window === "undefined") return false;
-  return sessionStorage.getItem(SESSION_AUTH_KEY) === "true";
-}
-
-export function setSellerAuthenticated(auth: boolean): void {
-  if (typeof window === "undefined") return;
-  if (auth) {
-    sessionStorage.setItem(SESSION_AUTH_KEY, "true");
-  } else {
-    sessionStorage.removeItem(SESSION_AUTH_KEY);
-  }
-}

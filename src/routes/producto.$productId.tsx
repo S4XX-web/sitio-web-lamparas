@@ -129,11 +129,11 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         {/* Breadcrumb Navigation */}
         <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-xs text-muted-foreground">
-          <Link to="/" className="hover:text-solar transition-colors">
+          <Link to="/" className="hover:text-solar-ink transition-colors">
             Inicio
           </Link>
           <span>/</span>
-          <a href="/#catalogo" className="hover:text-solar transition-colors">
+          <a href="/#catalogo" className="hover:text-solar-ink transition-colors">
             Catálogo
           </a>
           <span>/</span>
@@ -163,7 +163,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                     {product.badge}
                   </span>
                 )}
-                <span className="rounded-full bg-emerald-600/90 px-3 py-0.5 text-xs font-bold text-white shadow-md self-start">
+                <span className="rounded-full bg-emerald-700 px-3 py-0.5 text-xs font-bold text-white shadow-md self-start">
                   Disponible
                 </span>
                 {!isSolar && (
@@ -201,7 +201,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                   <button
                     type="button"
                     onClick={handlePrevImage}
-                    className="pressable absolute left-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/80 transition-all cursor-pointer shadow-md"
+                    className="pressable absolute left-3 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/80 transition-all cursor-pointer shadow-md"
                     aria-label="Foto anterior"
                   >
                     <ChevronLeft className="h-6 w-6" />
@@ -209,7 +209,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                   <button
                     type="button"
                     onClick={handleNextImage}
-                    className="pressable absolute right-3 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/80 transition-all cursor-pointer shadow-md"
+                    className="pressable absolute right-3 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/80 transition-all cursor-pointer shadow-md"
                     aria-label="Siguiente foto"
                   >
                     <ChevronRight className="h-6 w-6" />
@@ -259,10 +259,10 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
             {/* Pricing Section */}
             <div className="rounded-3xl border border-border bg-card p-4 sm:p-5 space-y-2 shadow-sm">
               <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
-                <span className="text-2xl sm:text-4xl font-extrabold text-solar font-serif">
+                <span className="text-2xl sm:text-4xl font-extrabold text-solar-ink font-serif">
                   ${product.price.toFixed(2)} USD
                 </span>
-                <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1 text-xs font-bold">
+                <span className="rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3 py-1 text-xs font-bold">
                   Despachos a todo Panamá
                 </span>
               </div>
@@ -277,7 +277,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                     <button
                       type="button"
                       onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="pressable flex h-9 w-9 items-center justify-center rounded-full text-foreground hover:bg-secondary font-bold text-sm cursor-pointer"
+                      className="pressable flex h-11 w-11 items-center justify-center rounded-full text-foreground hover:bg-secondary font-bold text-sm cursor-pointer"
                     >
                       -
                     </button>
@@ -285,7 +285,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                     <button
                       type="button"
                       onClick={() => setQuantity((q) => q + 1)}
-                      className="pressable flex h-9 w-9 items-center justify-center rounded-full text-foreground hover:bg-secondary font-bold text-sm cursor-pointer"
+                      className="pressable flex h-11 w-11 items-center justify-center rounded-full text-foreground hover:bg-secondary font-bold text-sm cursor-pointer"
                     >
                       +
                     </button>
@@ -306,7 +306,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
               <button
                 type="button"
                 onClick={handleWhatsAppOrder}
-                className="pressable w-full flex items-center justify-center gap-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 px-6 font-bold text-sm shadow-md cursor-pointer"
+                className="pressable w-full flex items-center justify-center gap-2.5 rounded-full border-2 border-emerald-600 bg-transparent text-emerald-700 hover:bg-emerald-600 hover:text-white dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white py-3.5 px-6 font-bold text-sm transition-colors cursor-pointer"
               >
                 <MessageCircle aria-hidden="true" className="h-5 w-5" />
                 <span>Pedir este Modelo por WhatsApp</span>
@@ -316,9 +316,9 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
               <button
                 type="button"
                 onClick={handleDirectQuotation}
-                className="pressable w-full flex items-center justify-center gap-2.5 rounded-full border-2 border-solar/50 bg-solar/10 hover:bg-solar hover:text-solar-foreground text-foreground py-3 px-6 font-bold text-sm shadow-sm transition-all cursor-pointer"
+                className="pressable w-full flex items-center justify-center gap-2.5 rounded-full border border-border bg-transparent hover:bg-secondary text-muted-foreground hover:text-foreground py-3 px-6 font-bold text-sm transition-colors cursor-pointer"
               >
-                <FileText aria-hidden="true" className="h-4 w-4 text-solar group-hover:text-inherit" />
+                <FileText aria-hidden="true" className="h-4 w-4" />
                 <span>Generar Cotización Oficial en PDF</span>
               </button>
             </div>
@@ -331,17 +331,17 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
               </div>
               {isSolar ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Wrench aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
+                  <Wrench aria-hidden="true" className="h-4 w-4 text-solar-ink shrink-0" />
                   <span>Instalación práctica sin cables (incluye tornillería; requiere herramientas básicas)</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Sparkles aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
+                  <Sparkles aria-hidden="true" className="h-4 w-4 text-solar-ink shrink-0" />
                   <span>Materiales de calidad y durabilidad seleccionados para el hogar</span>
                 </div>
               )}
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Shield aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
+                <Shield aria-hidden="true" className="h-4 w-4 text-solar-ink shrink-0" />
                 <span>Envíos por Ferguson y Uno Express (sucursal) o Servientrega (puerta a puerta)</span>
               </div>
             </div>
@@ -352,7 +352,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
                 {product.lumens && (
                   <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                      <Zap aria-hidden="true" className="h-4 w-4 text-solar" />
+                      <Zap aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                       Luminosidad / Potencia
                     </span>
                     <span className="font-bold text-foreground text-sm font-mono">{product.lumens}</span>
@@ -392,7 +392,7 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="spring-card rounded-2xl border border-border bg-card p-3.5">
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                    <Package aria-hidden="true" className="h-4 w-4 text-solar" />
+                    <Package aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                     Departamento
                   </span>
                   <span className="font-bold text-foreground text-sm">
@@ -435,26 +435,30 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
         </div>
 
         {/* Product Information Accordions / Tabs */}
-        <div className="mt-16 border-t border-border pt-12 space-y-8">
-          <div className="max-w-3xl">
-            <h2 className="font-serif text-2xl font-bold text-foreground mb-4">
-              Descripción detallada
-            </h2>
-            <p className="text-muted-foreground leading-relaxed text-sm sm:text-base">
-              {product.description}
-            </p>
+        <div className="mt-16 border-t border-border pt-12">
+          <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <h2 className="font-serif text-2xl font-bold text-foreground mb-4">
+                Descripción detallada
+              </h2>
+              <p className="text-muted-foreground leading-relaxed text-sm sm:text-base">
+                {product.description}
+              </p>
+            </div>
 
-            <h3 className="font-serif text-lg font-bold text-foreground mt-8 mb-4">
-              Características y beneficios principales
-            </h3>
-            <ul className="space-y-2.5">
-              {product.features.map((f, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm text-foreground">
-                  <Sparkles aria-hidden="true" className="h-4 w-4 text-solar shrink-0 mt-0.5" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
+            <div>
+              <h3 className="font-serif text-lg font-bold text-foreground mb-4">
+                Características y beneficios principales
+              </h3>
+              <ul className="space-y-2.5">
+                {product.features.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-foreground">
+                    <Sparkles aria-hidden="true" className="h-4 w-4 text-solar-ink shrink-0 mt-0.5" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -473,14 +477,20 @@ Me confirman disponibilidad y datos para coordinar el despacho? Muchas gracias.`
             </div>
             <Link
               to="/"
-              className="pressable text-xs font-bold text-solar hover:underline flex items-center gap-1"
+              className="pressable text-xs font-bold text-solar-ink hover:underline flex items-center gap-1"
             >
               <span>Ver catálogo completo</span>
               <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5 rotate-180" />
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            className={`grid grid-cols-1 gap-6 ${
+              relatedProducts.length === 2
+                ? "sm:grid-cols-2 mx-auto max-w-3xl"
+                : "sm:grid-cols-2 lg:grid-cols-3"
+            }`}
+          >
             {relatedProducts.map((rel) => (
               <ProductCard key={rel.id} product={rel} />
             ))}

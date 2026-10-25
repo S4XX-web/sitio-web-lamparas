@@ -52,7 +52,7 @@ export const GeneralFeaturedProducts: React.FC<GeneralFeaturedProductsProps> = (
                   Lámparas Solares de Alta Potencia (En Stock)
                 </h3>
                 <p className="text-xs text-white/70">
-                  3 modelos garantizados con entrega inmediata a todo Panamá
+                  {solarProducts.length} {solarProducts.length === 1 ? "modelo garantizado" : "modelos garantizados"} con entrega inmediata a todo Panamá
                 </p>
               </div>
             </div>
@@ -60,7 +60,7 @@ export const GeneralFeaturedProducts: React.FC<GeneralFeaturedProductsProps> = (
             <button
               type="button"
               onClick={() => onSelectDepartment("solar")}
-              className="pressable inline-flex items-center gap-2 rounded-full bg-white/10 hover:bg-white/20 text-white px-5 py-2 text-xs font-bold backdrop-blur-md border border-white/20 cursor-pointer transition-colors"
+              className="pressable inline-flex items-center gap-2 rounded-full bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 text-xs font-bold backdrop-blur-md border border-white/20 cursor-pointer transition-colors"
             >
               <span>Ver Departamento Solar Completo</span>
               <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
@@ -69,8 +69,16 @@ export const GeneralFeaturedProducts: React.FC<GeneralFeaturedProductsProps> = (
 
           {/* Real Products Cards */}
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {solarProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            {solarProducts.map((product, index) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                className={
+                  solarProducts.length % 2 === 1 && index === solarProducts.length - 1
+                    ? "sm:col-span-2 sm:mx-auto sm:w-[calc(50%-1rem)] lg:col-span-1 lg:mx-0 lg:w-auto"
+                    : ""
+                }
+              />
             ))}
           </div>
 
@@ -112,14 +120,22 @@ export const GeneralFeaturedProducts: React.FC<GeneralFeaturedProductsProps> = (
               </h3>
               <p className="text-xs text-white/70">
                 {homeProducts.length > 0
-                  ? `${homeProducts.length} producto(s) disponibles para tu hogar`
+                  ? `${homeProducts.length} ${
+                      homeProducts.length === 1 ? "producto disponible" : "productos disponibles"
+                    } para tu hogar`
                   : "Líneas de mobiliario exterior y accesorios en fase de preparación"}
               </p>
             </div>
           </div>
 
           {homeProducts.length > 0 && (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 mb-10">
+            <div
+              className={`grid gap-8 mb-10 ${
+                homeProducts.length === 1
+                  ? "max-w-md mx-auto"
+                  : "sm:grid-cols-2 lg:grid-cols-3"
+              }`}
+            >
               {homeProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
@@ -151,7 +167,7 @@ export const GeneralFeaturedProducts: React.FC<GeneralFeaturedProductsProps> = (
                 <button
                   type="button"
                   onClick={() => onSelectDepartment("muebles")}
-                  className="pressable rounded-full bg-white/15 hover:bg-white/25 text-white px-4 py-2 text-xs font-semibold cursor-pointer transition-colors"
+                  className="pressable rounded-full bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   Conocer detalles
                 </button>
@@ -191,7 +207,7 @@ export const GeneralFeaturedProducts: React.FC<GeneralFeaturedProductsProps> = (
                 <button
                   type="button"
                   onClick={() => onSelectDepartment("accesorios")}
-                  className="pressable rounded-full bg-white/15 hover:bg-white/25 text-white px-4 py-2 text-xs font-semibold cursor-pointer transition-colors"
+                  className="pressable rounded-full bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   Conocer detalles
                 </button>

@@ -26,7 +26,7 @@ export const HomeDepartmentView: React.FC<HomeDepartmentViewProps> = ({
           <button
             type="button"
             onClick={onBackToGeneral}
-            className="pressable inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 sm:px-4 py-1.5 text-xs font-bold text-foreground hover:border-solar hover:text-solar cursor-pointer transition-colors shadow-xs shrink-0"
+            className="pressable inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 sm:px-4 py-1.5 text-xs font-bold text-foreground hover:border-solar hover:text-solar-ink cursor-pointer transition-colors shadow-xs shrink-0"
           >
             <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">← Volver a la Portada</span>
@@ -34,7 +34,7 @@ export const HomeDepartmentView: React.FC<HomeDepartmentViewProps> = ({
           </button>
 
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-solar shrink-0">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-solar-ink shrink-0">
               {isFurniture ? (
                 <Armchair aria-hidden="true" className="h-3.5 w-3.5" />
               ) : (
@@ -51,7 +51,7 @@ export const HomeDepartmentView: React.FC<HomeDepartmentViewProps> = ({
             onClick={onGoToSolar}
             className="pressable inline-flex items-center gap-1.5 rounded-full bg-solar/15 hover:bg-solar text-foreground hover:text-solar-foreground px-2.5 sm:px-3 py-1 text-xs font-bold transition-colors cursor-pointer shrink-0"
           >
-            <Sun aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+            <Sun aria-hidden="true" className="h-3.5 w-3.5 text-solar-ink" />
             <span className="hidden sm:inline">Ver Iluminación Solar</span>
             <span className="sm:hidden text-xs">Solar</span>
           </button>
@@ -64,7 +64,7 @@ export const HomeDepartmentView: React.FC<HomeDepartmentViewProps> = ({
           {departmentProducts.length > 0 ? (
             <div className="space-y-8">
               <div className="text-center max-w-2xl mx-auto space-y-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-solar/15 text-solar px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-solar/15 text-solar-ink px-3 py-1 text-xs font-bold uppercase tracking-wider font-mono">
                   <Package className="w-3.5 h-3.5" />
                   Catálogo Disponible
                 </span>
@@ -106,7 +106,7 @@ export const HomeDepartmentView: React.FC<HomeDepartmentViewProps> = ({
             {/* Feature Points */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border">
               <div className="rounded-2xl border border-border bg-secondary/30 p-5 space-y-2">
-                <div className="flex items-center gap-2 text-solar font-bold text-xs uppercase font-mono">
+                <div className="flex items-center gap-2 text-solar-ink font-bold text-xs uppercase font-mono">
                   <ShieldCheck aria-hidden="true" className="h-4 w-4" />
                   <span>Resistencia Tropical</span>
                 </div>
@@ -116,7 +116,7 @@ export const HomeDepartmentView: React.FC<HomeDepartmentViewProps> = ({
               </div>
 
               <div className="rounded-2xl border border-border bg-secondary/30 p-5 space-y-2">
-                <div className="flex items-center gap-2 text-solar font-bold text-xs uppercase font-mono">
+                <div className="flex items-center gap-2 text-solar-ink font-bold text-xs uppercase font-mono">
                   <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
                   <span>Diseño & Confort</span>
                 </div>
@@ -126,7 +126,7 @@ export const HomeDepartmentView: React.FC<HomeDepartmentViewProps> = ({
               </div>
 
               <div className="rounded-2xl border border-border bg-secondary/30 p-5 space-y-2">
-                <div className="flex items-center gap-2 text-solar font-bold text-xs uppercase font-mono">
+                <div className="flex items-center gap-2 text-solar-ink font-bold text-xs uppercase font-mono">
                   <MessageCircle aria-hidden="true" className="h-4 w-4" />
                   <span>Atención Personal</span>
                 </div>
@@ -164,7 +164,7 @@ export const HomeDepartmentView: React.FC<HomeDepartmentViewProps> = ({
                   onClick={onGoToSolar}
                   className="pressable inline-flex items-center gap-2 rounded-full border border-border bg-background hover:bg-secondary text-foreground px-6 py-3 text-xs font-bold cursor-pointer transition-colors"
                 >
-                  <Sun aria-hidden="true" className="h-4 w-4 text-solar" />
+                  <Sun aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                   <span>Ver Lámparas Solares en Stock</span>
                 </button>
               </div>

@@ -101,9 +101,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Farolas solares de calle de 1200W y 800W con sensor de radar y proyector solar de 300W IP67 con despachos a todo Panamá.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Solar y Hogar Panamá" },
+      { property: "og:locale", content: "es_PA" },
+      { property: "og:url", content: "https://solaryhogar.store/" },
+      { property: "og:image", content: "https://solaryhogar.store/og-image.jpg" },
+      { property: "og:image:secure_url", content: "https://solaryhogar.store/og-image.jpg" },
+      { property: "og:image:type", content: "image/jpeg" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      {
+        property: "og:image:alt",
+        content: "Solar y Hogar Panamá — lámparas solares Rolinger para casas, patios y fincas",
+      },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "https://solaryhogar.store/og-image.jpg" },
     ],
     links: [
+      { rel: "canonical", href: "https://solaryhogar.store/" },
       {
         rel: "stylesheet",
         href: appCss,

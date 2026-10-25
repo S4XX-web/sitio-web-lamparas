@@ -45,7 +45,7 @@ export const ProductCatalog: React.FC = () => {
   }, [selectedCategory, searchQuery, sortBy]);
 
   return (
-    <section id="catalogo" className="relative overflow-hidden bg-forest/95 text-white py-24 px-4 sm:px-6 transition-colors duration-500">
+    <section id="catalogo" className="relative overflow-hidden bg-forest/95 text-white py-24 px-4 sm:px-6 transition-colors duration-500 scroll-mt-24">
       {/* Ambient Lighting Orbs */}
       <div
         aria-hidden="true"

@@ -215,10 +215,10 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
                   alt={currentProduct.name}
                   className="h-full w-full object-contain drop-shadow-2xl transition-all duration-300"
                 />
-                <span className="absolute top-3 left-3 rounded-full bg-black/70 border border-white/20 px-2.5 py-0.5 text-[10px] font-extrabold text-solar backdrop-blur-xs">
+                <span className="absolute top-3 left-3 rounded-full bg-black/70 border border-white/20 px-2.5 py-0.5 text-[11px] font-extrabold text-solar backdrop-blur-xs">
                   {currentProduct.badge}
                 </span>
-                <span className="absolute bottom-3 right-3 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
+                <span className="absolute bottom-3 right-3 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 text-[11px] font-bold">
                   En Stock Inmediato
                 </span>
               </div>
@@ -238,7 +238,7 @@ Me confirman disponibilidad y datos para coordinar el envio? Muchas gracias.`;
                       ${currentProduct.price.toFixed(2)} USD
                     </span>
                   </div>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 bg-emerald-400/10 px-2 sm:px-2.5 py-0.5 rounded-full">
+                  <span className="text-[11px] sm:text-[11px] font-bold text-emerald-400 bg-emerald-400/10 px-2 sm:px-2.5 py-0.5 rounded-full">
                     Despachos a todo Panamá
                   </span>
                 </div>

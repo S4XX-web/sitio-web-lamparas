@@ -2,14 +2,10 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product, CartItem } from "../types/store";
 import { PRODUCTS } from "../data/products";
 import { toast } from "sonner";
-import {
-  getCachedLivePrices,
-  applyLivePricesToCatalog,
-  syncPricesFromGoogleSheet,
-} from "../services/pricingSync";
+import { mergeLivePrices, syncPricesFromGoogleSheet } from "../services/pricingSync";
 import { PRICING_SHEET_CONFIG } from "../config/pricingSheet";
+import { isSupabaseConfigured } from "../lib/supabase";
 import {
-  getLiveCatalog,
   updateProductInCatalog,
   addProductToCatalog,
   deleteProductFromCatalog,
@@ -58,28 +54,52 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const STORAGE_KEY = "solara_cart_items_v1";
 
+/**
+ * Formato persistido: solo id + cantidad. Nunca se guardan precios ni
+ * nombres en localStorage, para que nadie pueda alterar el total editando
+ * el almacenamiento del navegador.
+ */
+interface StoredCartEntry {
+  productId?: string;
+  quantity?: number;
+  product?: { id?: string };
+}
+
+function readStoredCart(): CartItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((entry: StoredCartEntry) => {
+        const id = entry.productId || entry.product?.id;
+        if (!id) return null;
+
+        const officialProduct = PRODUCTS.find((p) => p.id === id);
+        if (!officialProduct) return null;
+
+        const qty =
+          typeof entry.quantity === "number" && entry.quantity > 0
+            ? Math.min(999, Math.floor(entry.quantity))
+            : 1;
+
+        return { product: officialProduct, quantity: qty } as CartItem;
+      })
+      .filter((item): item is CartItem => item !== null);
+  } catch {
+    return [];
+  }
+}
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return [];
-      // Revalidate product data and price against official catalog to prevent localStorage price tampering
-      return parsed
-        .map((entry: { product?: { id?: string }; productId?: string; quantity?: number }) => {
-          const id = entry.productId || entry.product?.id;
-          const officialProduct = PRODUCTS.find((p) => p.id === id);
-          const qty = typeof entry.quantity === "number" && entry.quantity > 0 ? Math.min(999, Math.floor(entry.quantity)) : 1;
-          if (!officialProduct) return null;
-          return { product: officialProduct, quantity: qty };
-        })
-        .filter((item): item is CartItem => item !== null);
-    } catch {
-      return [];
-    }
-  });
+  // El carrito arranca vacío también en el cliente: así el HTML del servidor y
+  // el primer render del cliente coinciden (sin hydration mismatch). Lo
+  // guardado se restaura en un efecto, ya con el componente montado.
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [cartReady, setCartReady] = useState(false);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
@@ -89,10 +109,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [couponCode, setCouponCode] = useState<string>("");
   const [isSyncingPrices, setIsSyncingPrices] = useState(false);
   const [lastPriceSyncTime, setLastPriceSyncTime] = useState<Date | null>(null);
-  const [, setPriceRevision] = useState(0);
 
-  // Catálogo reactivo en vivo administrable por el vendedor
-  const [products, setProducts] = useState<Product[]>(() => getLiveCatalog());
+  // Catálogo reactivo. Arranca con el catálogo estático (idéntico en servidor y
+  // cliente, sin hydration mismatch) y se sustituye por el de Supabase al montar.
+  const [products, setProducts] = useState<Product[]>(() => [...PRODUCTS]);
+
+  // Restaurar el carrito guardado después del montaje (solo id + cantidad).
+  // `cartReady` evita que el efecto de guardado escriba un carrito vacío antes
+  // de que termine la restauración.
+  useEffect(() => {
+    const restored = readStoredCart();
+    if (restored.length > 0) {
+      setItems(restored);
+    }
+    setCartReady(true);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = subscribeToCatalogChanges((updated) => {
@@ -127,24 +158,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProducts(defaultCatalog);
   };
 
-  // Apply cached live prices immediately upon provider mount for instant 0ms rendering
-  useEffect(() => {
-    const cached = getCachedLivePrices();
-    if (cached) {
-      applyLivePricesToCatalog(cached);
-      setPriceRevision((prev) => prev + 1);
-    }
-  }, []);
-
+  // Precios desde Google Sheets SOLO cuando Supabase no está configurado.
+  // Con Supabase, el catálogo (y sus precios) es la única fuente autoritativa.
   const syncLivePricesNow = async () => {
+    if (isSupabaseConfigured()) return;
     if (!PRICING_SHEET_CONFIG.enabled || !PRICING_SHEET_CONFIG.sheetId) return;
+
     setIsSyncingPrices(true);
     try {
       const live = await syncPricesFromGoogleSheet();
       if (live) {
-        setLastPriceSyncTime(new Date());
-        setPriceRevision((prev) => prev + 1);
-        // Also update any items already in the cart to match new live price
+        setProducts((prev) => mergeLivePrices(prev, live));
         setItems((prev) =>
           prev.map((item) => {
             const updated = live[item.product.id];
@@ -155,8 +179,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               };
             }
             return item;
-          })
+          }),
         );
+        setLastPriceSyncTime(new Date());
       }
     } catch (err) {
       console.warn("Pricing sync failed:", err);
@@ -165,11 +190,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Sync with Google Sheets periodically and on window focus
+  // Sincronización periódica y al volver a la pestaña (solo modo sin Supabase).
   useEffect(() => {
-    syncLivePricesNow();
-
+    if (isSupabaseConfigured()) return;
     if (!PRICING_SHEET_CONFIG.enabled || !PRICING_SHEET_CONFIG.sheetId) return;
+
+    syncLivePricesNow();
 
     const interval = setInterval(() => {
       syncLivePricesNow();
@@ -186,6 +212,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [activeDepartment, setActiveDepartmentState] = useState<"general" | "solar" | "muebles" | "accesorios">(() => {
     if (typeof window !== "undefined") {
@@ -239,19 +266,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [nightMode]);
 
-  // Save only validated items to localStorage
+  // Persistir SOLO id + cantidad. Nunca se guardan precios ni objetos de
+  // producto: así manipular localStorage no puede alterar el total.
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-      } catch (e) {
-        console.error("Failed to save cart to localStorage", e);
-      }
+    if (!cartReady) return;
+    if (typeof window === "undefined") return;
+    try {
+      const payload = items.map((item) => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.error("Failed to save cart to localStorage", e);
     }
-  }, [items]);
+  }, [items, cartReady]);
 
   const addItem = (product: Product, quantity = 1) => {
-    const officialProduct = PRODUCTS.find((p) => p.id === product.id) || product;
+    // Se resuelve contra el catálogo vivo (Supabase), no contra PRODUCTS.
+    const officialProduct = products.find((p) => p.id === product.id) || product;
     const validQty = Math.max(1, Math.floor(quantity));
 
     setItems((prev) => {

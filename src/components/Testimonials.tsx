@@ -33,7 +33,7 @@ export const Testimonials: React.FC = () => {
   ];
 
   return (
-    <section id="opiniones" className="border-b border-border bg-background py-24 px-4 sm:px-6 transition-colors duration-500">
+    <section id="opiniones" className="border-b border-border bg-background py-24 px-4 sm:px-6 transition-colors duration-500 scroll-mt-24">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="text-center mb-14">
@@ -71,7 +71,7 @@ export const Testimonials: React.FC = () => {
                   <span className="font-mono text-[11px]">{r.date}</span>
                 </div>
 
-                <Quote aria-hidden="true" className="h-7 w-7 text-solar/40 mb-3" />
+                <Quote aria-hidden="true" className="h-7 w-7 text-solar-ink/40 mb-3" />
                 <p className="text-xs sm:text-sm text-foreground/90 italic leading-relaxed mb-6 font-normal">
                   "{r.comment}"
                 </p>
@@ -85,13 +85,13 @@ export const Testimonials: React.FC = () => {
                       <CheckCircle aria-hidden="true" className="h-3.5 w-3.5 text-primary" />
                     </h4>
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <MapPin aria-hidden="true" className="h-3 w-3 text-solar" />
+                      <MapPin aria-hidden="true" className="h-3 w-3 text-solar-ink" />
                       {r.location}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-3 inline-block rounded-lg bg-solar/15 text-solar px-2.5 py-1 text-[10px] font-bold">
+                <div className="mt-3 inline-block rounded-lg bg-solar/15 text-solar-ink px-2.5 py-1 text-[11px] font-bold">
                   Modelo: {r.product}
                 </div>
               </div>

@@ -34,26 +34,48 @@ CREATE TABLE IF NOT EXISTS public.products (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Habilitar Seguridad por Filas (Row Level Security - RLS)
+-- 2. Tabla de vendedores autorizados (quién puede escribir en la tienda)
+--    Sin una fila aquí, un usuario autenticado NO puede modificar nada.
+CREATE TABLE IF NOT EXISTS public.sellers (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.sellers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Vendedor ve su propio registro" ON public.sellers;
+CREATE POLICY "Vendedor ve su propio registro"
+  ON public.sellers
+  FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
+
+-- 3. Habilitar Seguridad por Filas (Row Level Security - RLS)
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
--- 3. Crear Políticas de Acceso:
+-- 4. Crear Políticas de Acceso:
 -- Cualquiera (clientes y visitantes) puede leer el catálogo
 DROP POLICY IF EXISTS "Permitir lectura pública del catálogo" ON public.products;
-CREATE POLICY "Permitir lectura pública del catálogo"
+DROP POLICY IF EXISTS "Lectura pública del catálogo" ON public.products;
+CREATE POLICY "Lectura pública del catálogo"
   ON public.products
   FOR SELECT
+  TO anon, authenticated
   USING (true);
 
--- Permitir insertar, actualizar y eliminar productos con la clave anon/vendedor
+-- Solo los vendedores registrados en public.sellers pueden crear,
+-- editar o borrar productos. La clave anon por sí sola ya NO sirve.
 DROP POLICY IF EXISTS "Permitir gestión de productos a vendedores" ON public.products;
-CREATE POLICY "Permitir gestión de productos a vendedores"
+DROP POLICY IF EXISTS "Vendedores autorizados gestionan productos" ON public.products;
+CREATE POLICY "Vendedores autorizados gestionan productos"
   ON public.products
   FOR ALL
-  USING (true)
-  WITH CHECK (true);
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.sellers s WHERE s.user_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.sellers s WHERE s.user_id = auth.uid()));
 
--- 4. Activar Sincronización en Tiempo Real (Realtime) para la tabla products
+-- 5. Activar Sincronización en Tiempo Real (Realtime) para la tabla products
 -- Esto permite que cualquier cambio en el celular se vea instantáneamente en la PC sin recargar
 DO $$
 BEGIN
@@ -65,28 +87,59 @@ BEGIN
   END IF;
 END $$;
 
--- 5. Crear Bucket de Almacenamiento para Fotos de Productos
+-- 6. Crear Bucket de Almacenamiento para Fotos de Productos
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('products', 'products', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- Políticas de acceso para las fotos de productos
+-- Políticas de acceso para las fotos de productos:
+-- lectura pública, escritura solo para vendedores autorizados.
 DROP POLICY IF EXISTS "Fotos de productos públicas" ON storage.objects;
+DROP POLICY IF EXISTS "Imágenes de productos públicas" ON storage.objects;
 CREATE POLICY "Fotos de productos públicas"
   ON storage.objects FOR SELECT
+  TO anon, authenticated
   USING (bucket_id = 'products');
 
 DROP POLICY IF EXISTS "Permitir subir fotos de productos" ON storage.objects;
-CREATE POLICY "Permitir subir fotos de productos"
+DROP POLICY IF EXISTS "Vendedores autorizados suben fotos" ON storage.objects;
+CREATE POLICY "Vendedores autorizados suben fotos"
   ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'products');
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'products'
+    AND EXISTS (SELECT 1 FROM public.sellers s WHERE s.user_id = auth.uid())
+  );
 
 DROP POLICY IF EXISTS "Permitir actualizar fotos de productos" ON storage.objects;
-CREATE POLICY "Permitir actualizar fotos de productos"
+DROP POLICY IF EXISTS "Vendedores autorizados actualizan fotos" ON storage.objects;
+CREATE POLICY "Vendedores autorizados actualizan fotos"
   ON storage.objects FOR UPDATE
-  USING (bucket_id = 'products');
+  TO authenticated
+  USING (
+    bucket_id = 'products'
+    AND EXISTS (SELECT 1 FROM public.sellers s WHERE s.user_id = auth.uid())
+  );
 
--- 6. Insertar los 3 productos originales de fábrica (Seed inicial)
+DROP POLICY IF EXISTS "Vendedores autorizados eliminan fotos" ON storage.objects;
+CREATE POLICY "Vendedores autorizados eliminan fotos"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'products'
+    AND EXISTS (SELECT 1 FROM public.sellers s WHERE s.user_id = auth.uid())
+  );
+
+-- 7. Registrar al vendedor
+--    PASO PREVIO: crea el usuario en Authentication > Users (correo + contraseña)
+--    y desactiva "Allow new users to sign up" en Authentication > Providers > Email.
+--    Luego ejecuta esto con el correo del vendedor:
+--
+--    INSERT INTO public.sellers (user_id, email)
+--    SELECT id, email FROM auth.users WHERE email = 'vendedor@correo.com'
+--    ON CONFLICT (user_id) DO NOTHING;
+
+-- 8. Insertar los 3 productos originales de fábrica (Seed inicial)
 INSERT INTO public.products (
   id, name, tagline, department, category, price, original_price, rating, reviews_count,
   image, images, badge, in_stock, lumens, battery_life, waterproof, description, features
@@ -152,3 +205,127 @@ INSERT INTO public.products (
   '["Potencia de 300W con ángulo de apertura de 120°", "Luz blanca fría 6500K de hasta 50,000 horas de vida útil en LEDs", "Tecnología 100% solar con encendido crepuscular automático", "Panel solar de silicio monocristalino separado de alta conversión", "Alta durabilidad certificada IP67 contra lluvias torrenciales y polvo", "Control remoto inteligente con ajuste de brillo y temporizador", "Ámbitos recomendados: patios, terrazas techadas, entradas, fincas y talleres"]'::jsonb
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- ==============================================================================
+-- 9. SOLICITUDES (COTIZACIONES Y PEDIDOS) CON PRECIOS VALIDADOS EN SERVIDOR
+-- ==============================================================================
+-- El navegador solo envía productId + quantity. Esta función lee el precio
+-- real de public.products, calcula los totales y devuelve el documento con su
+-- número oficial. Un documento válido es el que existe en esta tabla: ya no
+-- se puede fabricar una cotización con otro importe desde el navegador.
+
+CREATE TABLE IF NOT EXISTS public.requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text UNIQUE NOT NULL,
+  kind text NOT NULL CHECK (kind IN ('cotizacion', 'pedido')),
+  customer_name text NOT NULL,
+  customer_phone text,
+  notes jsonb NOT NULL DEFAULT '{}'::jsonb,
+  items jsonb NOT NULL,
+  subtotal numeric(12,2) NOT NULL,
+  total numeric(12,2) NOT NULL,
+  status text NOT NULL DEFAULT 'pendiente',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS requests_created_at_idx
+  ON public.requests (created_at DESC);
+
+ALTER TABLE public.requests ENABLE ROW LEVEL SECURITY;
+
+-- Nadie escribe directamente en la tabla: solo la función SECURITY DEFINER.
+-- Los vendedores registrados sí pueden leer las solicitudes desde el panel.
+DROP POLICY IF EXISTS "Vendedores leen solicitudes" ON public.requests;
+CREATE POLICY "Vendedores leen solicitudes"
+  ON public.requests FOR SELECT
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.sellers s WHERE s.user_id = auth.uid()));
+
+CREATE SEQUENCE IF NOT EXISTS public.request_code_seq;
+
+CREATE OR REPLACE FUNCTION public.create_request(payload jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_kind text := COALESCE(payload->>'kind', 'cotizacion');
+  v_items jsonb := payload->'items';
+  v_item jsonb;
+  v_prod record;
+  v_qty int;
+  v_unit numeric(12,2);
+  v_subtotal numeric(12,2) := 0;
+  v_out_items jsonb := '[]'::jsonb;
+  v_code text;
+  v_id uuid;
+  v_created timestamptz;
+  v_name text;
+  v_phone text;
+  v_notes jsonb;
+BEGIN
+  IF v_kind NOT IN ('cotizacion', 'pedido') THEN
+    RAISE EXCEPTION 'Tipo de solicitud no válido';
+  END IF;
+
+  IF v_items IS NULL OR jsonb_typeof(v_items) <> 'array' OR jsonb_array_length(v_items) = 0 THEN
+    RAISE EXCEPTION 'La solicitud no contiene productos';
+  END IF;
+
+  IF jsonb_array_length(v_items) > 50 THEN
+    RAISE EXCEPTION 'La solicitud supera el máximo de 50 líneas';
+  END IF;
+
+  v_name := LEFT(COALESCE(NULLIF(BTRIM(payload->>'customerName'), ''), 'Cliente Particular'), 120);
+  v_phone := LEFT(COALESCE(payload->>'customerPhone', ''), 40);
+  v_notes := CASE WHEN jsonb_typeof(payload->'notes') = 'object' THEN payload->'notes' ELSE '{}'::jsonb END;
+
+  FOR v_item IN SELECT * FROM jsonb_array_elements(v_items) LOOP
+    v_qty := GREATEST(1, LEAST(999, COALESCE((v_item->>'quantity')::int, 1)));
+
+    SELECT id, name, price, in_stock INTO v_prod
+      FROM public.products
+     WHERE id = v_item->>'productId';
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Producto no encontrado: %', COALESCE(v_item->>'productId', '?');
+    END IF;
+
+    v_unit := ROUND(v_prod.price::numeric, 2);
+    v_subtotal := v_subtotal + (v_unit * v_qty);
+
+    v_out_items := v_out_items || jsonb_build_object(
+      'productId', v_prod.id,
+      'name', v_prod.name,
+      'unitPrice', v_unit,
+      'quantity', v_qty,
+      'lineTotal', ROUND(v_unit * v_qty, 2),
+      'inStock', v_prod.in_stock
+    );
+  END LOOP;
+
+  v_code := (CASE WHEN v_kind = 'pedido' THEN 'PED' ELSE 'COT' END)
+            || '-' || to_char(now(), 'YYYYMMDD') || '-'
+            || lpad(nextval('public.request_code_seq')::text, 4, '0');
+
+  INSERT INTO public.requests (code, kind, customer_name, customer_phone, notes, items, subtotal, total)
+  VALUES (v_code, v_kind, v_name, v_phone, v_notes, v_out_items, v_subtotal, v_subtotal)
+  RETURNING id, created_at INTO v_id, v_created;
+
+  RETURN jsonb_build_object(
+    'id', v_id,
+    'code', v_code,
+    'kind', v_kind,
+    'customerName', v_name,
+    'items', v_out_items,
+    'subtotal', v_subtotal,
+    'total', v_subtotal,
+    'createdAt', v_created
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_request(jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_request(jsonb) TO anon, authenticated;
+

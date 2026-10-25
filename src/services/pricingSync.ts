@@ -66,53 +66,31 @@ function matchProductId(rawText: string): string | null {
 }
 
 /**
- * Aplica los precios en vivo al catálogo en memoria (PRODUCTS).
+ * Aplica los precios en vivo a una copia del catálogo (sin mutar nada global).
+ * Devuelve un catálogo nuevo; nunca modifica el array recibido.
  */
-export function applyLivePricesToCatalog(prices: LivePricesMap): void {
-  Object.entries(prices).forEach(([id, entry]) => {
-    const product = PRODUCTS.find((p) => p.id === id);
-    if (product && entry.price > 0) {
-      product.price = entry.price;
-      if (entry.originalPrice && entry.originalPrice > entry.price) {
-        product.originalPrice = entry.originalPrice;
-      }
-      if (typeof entry.inStock === "boolean") {
-        product.inStock = entry.inStock;
-      }
-      if (entry.description && entry.description.trim().length > 5) {
-        product.description = entry.description.trim();
-      }
-      if (entry.badge && entry.badge.trim().length > 0) {
-        product.badge = entry.badge.trim();
-      }
+export function mergeLivePrices(products: Product[], prices: LivePricesMap): Product[] {
+  return products.map((product) => {
+    const entry = prices[product.id];
+    if (!entry || entry.price <= 0) return product;
+
+    const merged: Product = { ...product, price: entry.price };
+
+    if (entry.originalPrice && entry.originalPrice > entry.price) {
+      merged.originalPrice = entry.originalPrice;
     }
+    if (typeof entry.inStock === "boolean") {
+      merged.inStock = entry.inStock;
+    }
+    if (entry.description && entry.description.trim().length > 5) {
+      merged.description = entry.description.trim();
+    }
+    if (entry.badge && entry.badge.trim().length > 0) {
+      merged.badge = entry.badge.trim();
+    }
+
+    return merged;
   });
-}
-
-/**
- * Recupera los precios cacheados en localStorage para carga instantánea a 0ms.
- */
-export function getCachedLivePrices(): LivePricesMap | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(PRICING_SHEET_CONFIG.storageKey);
-    if (!raw) return null;
-    return JSON.parse(raw) as LivePricesMap;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Guarda los precios actualizados en localStorage.
- */
-function savePricesToCache(prices: LivePricesMap): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(PRICING_SHEET_CONFIG.storageKey, JSON.stringify(prices));
-  } catch (err) {
-    console.warn("No se pudo guardar la caché de precios", err);
-  }
 }
 
 /**
@@ -242,8 +220,6 @@ export async function syncPricesFromGoogleSheet(): Promise<LivePricesMap | null>
     }
 
     if (Object.keys(livePrices).length > 0) {
-      applyLivePricesToCatalog(livePrices);
-      savePricesToCache(livePrices);
       return livePrices;
     }
 

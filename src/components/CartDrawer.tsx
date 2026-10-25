@@ -64,7 +64,7 @@ Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border p-4 sm:p-5 bg-card">
             <div className="flex items-center gap-2">
-              <ShoppingBag aria-hidden="true" className="h-5 w-5 text-solar" />
+              <ShoppingBag aria-hidden="true" className="h-5 w-5 text-solar-ink" />
               <h2 className="font-serif text-lg font-bold text-foreground">Tu Carrito Solar y Hogar</h2>
               <span className="rounded-full bg-solar/20 px-2 py-0.5 text-xs font-bold text-solar-foreground">
                 {items.reduce((acc, i) => acc + i.quantity, 0)}
@@ -82,9 +82,9 @@ Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.
           {/* Nationwide Shipping Banner (Free Shipping Removed) */}
           <div className="border-b border-border bg-solar/10 p-3.5 text-xs text-foreground">
             <p className="flex items-start gap-2 font-medium leading-relaxed">
-              <Truck aria-hidden="true" className="h-4 w-4 text-solar shrink-0 mt-0.5" />
+              <Truck aria-hidden="true" className="h-4 w-4 text-solar-ink shrink-0 mt-0.5" />
               <span>
-                <strong className="text-solar font-bold">Despachos a todo Panamá:</strong> Retiro en sucursal (Ferguson / Uno Express / Servientrega) o entrega puerta a puerta (exclusivo con Servientrega).
+                <strong className="text-solar-ink font-bold">Despachos a todo Panamá:</strong> Retiro en sucursal (Ferguson / Uno Express / Servientrega) o entrega puerta a puerta (exclusivo con Servientrega).
               </span>
             </p>
           </div>
@@ -94,7 +94,7 @@ Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.
             {items.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground py-12">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary mb-4">
-                  <ShoppingBag aria-hidden="true" className="h-9 w-9 text-solar" />
+                  <ShoppingBag aria-hidden="true" className="h-9 w-9 text-solar-ink" />
                 </div>
                 <h3 className="font-serif text-lg font-bold text-foreground">Tu carrito está vacío</h3>
                 <p className="mt-1 text-xs max-w-xs leading-relaxed">
@@ -116,7 +116,7 @@ Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.
                     }}
                     className="rounded-full border border-solar/40 bg-solar/15 hover:bg-solar hover:text-solar-foreground px-6 py-2.5 text-xs font-bold text-foreground transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+                    <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar-ink" />
                     <span>Abrir Cotizador Oficial (PDF)</span>
                   </button>
                 </div>
@@ -169,7 +169,7 @@ Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.
                         </button>
                       </div>
 
-                      <span className="font-bold text-solar text-sm">${(product.price * quantity).toFixed(2)}</span>
+                      <span className="font-bold text-solar-ink text-sm">${(product.price * quantity).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -193,7 +193,7 @@ Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.
                 </div>
                 <div className="flex justify-between text-base font-extrabold text-foreground pt-2 border-t border-border">
                   <span>Total en productos</span>
-                  <span className="text-solar">${total.toFixed(2)} USD</span>
+                  <span className="text-solar-ink">${total.toFixed(2)} USD</span>
                 </div>
               </div>
 
@@ -220,23 +220,23 @@ Me confirman disponibilidad y los datos para coordinar el envio? Muchas gracias.
                   }}
                   className="w-full flex items-center justify-center gap-2 rounded-full border-2 border-primary/30 bg-card hover:bg-secondary text-foreground hover:border-solar px-5 py-2.5 text-xs font-bold shadow-sm transition-all hover:scale-101 cursor-pointer"
                 >
-                  <FileText aria-hidden="true" className="h-4 w-4 text-solar" />
+                  <FileText aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                   <span>Generar Cotización en PDF</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleWhatsAppCheckout}
-                  className="w-full flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow hover:bg-emerald-700 transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-emerald-700 hover:underline dark:text-emerald-400 transition-colors cursor-pointer"
                 >
                   <MessageCircle aria-hidden="true" className="h-3.5 w-3.5" />
                   <span>Consultar por WhatsApp al instante</span>
                 </button>
               </div>
 
-              <div className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground pt-1 text-center">
+              <div className="flex flex-col items-center gap-1 text-[11px] text-muted-foreground pt-1 text-center">
                 <div className="flex items-center gap-1.5">
-                  <Truck aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+                  <Truck aria-hidden="true" className="h-3.5 w-3.5 text-solar-ink" />
                   <span>Despachos a todo Panamá vía Ferguson, Uno Express y Servientrega</span>
                 </div>
                 <span>Pagos por Yappy (Banco General) o Transferencia Bancaria ACH</span>

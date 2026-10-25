@@ -38,6 +38,7 @@
   --color-ring: var(--ring);
   --color-solar: var(--solar);
   --color-solar-foreground: var(--solar-foreground);
+  --color-solar-ink: var(--solar-ink);
   --color-leaf: var(--leaf);
   --color-earth: var(--earth);
   --color-sand: var(--sand);
@@ -85,6 +86,9 @@
   /* Brand Tokens */
   --solar: oklch(0.79 0.16 82);
   --solar-foreground: oklch(0.26 0.05 120);
+  /* Dorado para TEXTO sobre fondos claros (el --solar brillante no alcanza
+     4.5:1 sobre crema). En .dark se iguala al --solar brillante. */
+  --solar-ink: oklch(0.48 0.12 72);
   --leaf: oklch(0.55 0.12 145);
   --earth: oklch(0.48 0.06 70);
   --sand: oklch(0.945 0.02 95);
@@ -115,6 +119,7 @@
 
   --solar: oklch(0.82 0.16 82);
   --solar-foreground: oklch(0.18 0.04 120);
+  --solar-ink: oklch(0.82 0.16 82);
   --leaf: oklch(0.62 0.12 145);
   --earth: oklch(0.38 0.04 70);
   --sand: oklch(0.22 0.03 155);
@@ -128,7 +133,6 @@
 
   html {
     scroll-behavior: smooth;
-    overflow-x: hidden;
     max-width: 100vw;
     width: 100%;
     -webkit-text-size-adjust: 100%;
@@ -139,7 +143,6 @@
     color: var(--color-foreground);
     font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     transition: background-color 300ms ease-out, color 300ms ease-out;
-    overflow-x: hidden;
     max-width: 100vw;
     width: 100%;
     margin: 0;
@@ -182,9 +185,9 @@
 }
 
 @utility glass-chip {
-  background: color-mix(in oklab, var(--solar) 20%, transparent);
+  background: color-mix(in oklab, var(--solar) 88%, white);
   backdrop-filter: blur(14px);
-  border: 1px solid color-mix(in oklab, var(--solar) 40%, transparent);
+  border: 1px solid color-mix(in oklab, var(--solar) 55%, white);
 }
 
 @utility glass-dark {

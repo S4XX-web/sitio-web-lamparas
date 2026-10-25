@@ -1,5 +1,6 @@
 import React from "react";
 import { Sun, Armchair, Sparkles, ArrowRight, ShieldCheck, Truck, Home } from "lucide-react";
+import { useCart } from "../context/CartContext";
 
 interface BrandDepartmentsProps {
   onSelectDepartment?: (dept: "solar" | "muebles" | "accesorios") => void;
@@ -10,12 +11,15 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
   onSelectDepartment,
   activeDepartment = "general",
 }) => {
+  const { products } = useCart();
+  const solarCount = products.filter((product) => product.department === "solar").length;
+
   return (
     <section id="departamentos" className="relative bg-background border-b border-border py-16 px-4 sm:px-6 scroll-mt-20">
       <div className="mx-auto max-w-6xl">
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-solar/15 text-solar px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider font-mono">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-solar/15 text-solar-ink px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider font-mono">
             <Home aria-hidden="true" className="h-3.5 w-3.5" />
             Departamentos de Solar y Hogar
           </span>
@@ -36,12 +40,12 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-solar text-solar-foreground shadow-md">
                   <Sun aria-hidden="true" className="h-6 w-6" />
                 </span>
-                <span className="rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-3 py-1 text-[11px] font-black uppercase tracking-wider font-mono">
-                  Disponible (3 Modelos)
+                <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-3 py-1 text-[11px] font-black uppercase tracking-wider font-mono">
+                  Disponible ({solarCount} {solarCount === 1 ? "Modelo" : "Modelos"})
                 </span>
               </div>
 
-              <h3 className="font-serif text-xl font-bold text-foreground group-hover:text-solar transition-colors">
+              <h3 className="font-serif text-xl font-bold text-foreground group-hover:text-solar-ink transition-colors">
                 Iluminación & Energía Solar
               </h3>
               <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed">
@@ -50,11 +54,11 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
 
               <ul className="mt-5 space-y-2 text-xs text-foreground/85">
                 <li className="flex items-center gap-2">
-                  <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-solar shrink-0" />
+                  <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-solar-ink shrink-0" />
                   <span>Resistencia tropical IP66 / IP67</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Truck aria-hidden="true" className="h-3.5 w-3.5 text-solar shrink-0" />
+                  <Truck aria-hidden="true" className="h-3.5 w-3.5 text-solar-ink shrink-0" />
                   <span>Despacho inmediato en 24h a todo Panamá</span>
                 </li>
               </ul>
@@ -64,7 +68,7 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectDepartment?.("solar")}
-                className="pressable w-full inline-flex items-center justify-center gap-2 rounded-xl bg-solar py-2.5 px-4 text-xs font-bold text-solar-foreground hover:bg-solar/95 shadow-md cursor-pointer transition-transform active:scale-95"
+                className="pressable w-full inline-flex items-center justify-center gap-2 rounded-xl bg-solar py-3 px-4 text-xs font-bold text-solar-foreground hover:bg-solar/95 shadow-md cursor-pointer transition-transform active:scale-95"
               >
                 <span>Entrar a Iluminación Solar</span>
                 <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
@@ -77,9 +81,9 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
             <div>
               <div className="flex items-center justify-between mb-5">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-foreground">
-                  <Armchair aria-hidden="true" className="h-6 w-6 text-solar" />
+                  <Armchair aria-hidden="true" className="h-6 w-6 text-solar-ink" />
                 </span>
-                <span className="rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-3 py-1 text-[11px] font-extrabold font-mono">
+                <span className="rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 px-3 py-1 text-[11px] font-extrabold font-mono">
                   Próximo Lanzamiento 2026
                 </span>
               </div>
@@ -107,7 +111,7 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectDepartment?.("muebles")}
-                className="pressable w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 py-2.5 px-4 text-xs font-bold text-foreground cursor-pointer transition-colors"
+                className="pressable w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 py-3 px-4 text-xs font-bold text-foreground cursor-pointer transition-colors"
               >
                 <span>Ver Avance de Colección</span>
                 <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
@@ -117,7 +121,7 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
                 href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20me%20gustaria%20saber%20sobre%20su%20proxima%20linea%20de%20muebles"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-center text-[11px] font-semibold text-muted-foreground hover:text-solar transition-colors pt-1"
+                className="text-center text-xs font-semibold text-muted-foreground hover:text-solar-ink transition-colors pt-1"
               >
                 Consultar por encargo vía WhatsApp
               </a>
@@ -129,9 +133,9 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
             <div>
               <div className="flex items-center justify-between mb-5">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-foreground">
-                  <Sparkles aria-hidden="true" className="h-6 w-6 text-solar" />
+                  <Sparkles aria-hidden="true" className="h-6 w-6 text-solar-ink" />
                 </span>
-                <span className="rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-3 py-1 text-[11px] font-extrabold font-mono">
+                <span className="rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 px-3 py-1 text-[11px] font-extrabold font-mono">
                   Próximo Lanzamiento 2026
                 </span>
               </div>
@@ -159,7 +163,7 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectDepartment?.("accesorios")}
-                className="pressable w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 py-2.5 px-4 text-xs font-bold text-foreground cursor-pointer transition-colors"
+                className="pressable w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 py-3 px-4 text-xs font-bold text-foreground cursor-pointer transition-colors"
               >
                 <span>Ver Avance de Colección</span>
                 <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
@@ -169,7 +173,7 @@ export const BrandDepartments: React.FC<BrandDepartmentsProps> = ({
                 href="https://wa.me/50769893055?text=Hola%20Solar%20y%20Hogar,%20me%20gustaria%20saber%20sobre%20su%20proxima%20linea%20de%20accesorios%20para%20el%20hogar"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-center text-[11px] font-semibold text-muted-foreground hover:text-solar transition-colors pt-1"
+                className="text-center text-xs font-semibold text-muted-foreground hover:text-solar-ink transition-colors pt-1"
               >
                 Consultar por WhatsApp (6989-3055)
               </a>

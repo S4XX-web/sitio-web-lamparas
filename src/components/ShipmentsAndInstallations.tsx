@@ -39,7 +39,7 @@ export const ShipmentsAndInstallations: React.FC = () => {
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-10">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-solar/15 px-3.5 py-1 text-xs font-bold text-solar-foreground">
-            <Camera className="h-3.5 w-3.5 text-solar" />
+            <Camera className="h-3.5 w-3.5 text-solar-ink" />
             Evidencia Real en Panamá
           </span>
           <h2 className="mt-3 font-serif text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight">
@@ -128,8 +128,8 @@ export const ShipmentsAndInstallations: React.FC = () => {
                             <Play className="h-5 w-5 fill-solar-foreground ml-0.5" />
                           </span>
                         </div>
-                        <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-xs">
-                          <Video className="h-3 w-3 text-solar" /> Video en Vivo
+                        <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-xs">
+                          <Video className="h-3 w-3 text-solar-ink" /> Video en Vivo
                         </span>
                       </div>
                     ) : (
@@ -170,13 +170,13 @@ export const ShipmentsAndInstallations: React.FC = () => {
                     </span>
 
                     <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1 font-mono">
-                      <MapPin className="h-3 w-3 text-solar" />
+                      <MapPin className="h-3 w-3 text-solar-ink" />
                       {item.location}
                     </span>
                   </div>
 
                   {/* Title & Description */}
-                  <h3 className="mt-2.5 font-serif text-lg font-bold text-foreground group-hover:text-solar transition-colors">
+                  <h3 className="mt-2.5 font-serif text-lg font-bold text-foreground group-hover:text-solar-ink transition-colors">
                     {item.title}
                   </h3>
                   <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
@@ -201,7 +201,7 @@ export const ShipmentsAndInstallations: React.FC = () => {
         <div className="mt-12 rounded-3xl border border-solar/30 bg-gradient-to-r from-solar/10 via-sand/60 to-primary/10 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-1.5 text-center md:text-left">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-solar-foreground">
-              <Camera className="h-4 w-4 text-solar" />
+              <Camera className="h-4 w-4 text-solar-ink" />
               ¿Ya recibiste o instalaste tus lámparas?
             </span>
             <h3 className="font-serif text-xl sm:text-2xl font-bold text-foreground">
@@ -285,7 +285,7 @@ export const ShipmentsAndInstallations: React.FC = () => {
 
             <div className="mt-4 px-2 pb-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs font-semibold text-solar">
+                <div className="flex items-center gap-2 text-xs font-semibold text-solar-ink">
                   <span className="font-bold uppercase tracking-wider bg-solar/15 text-solar-foreground px-2 py-0.5 rounded-md">
                     {currentModalItem.badge}
                   </span>

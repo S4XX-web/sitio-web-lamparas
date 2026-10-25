@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ShoppingBag, FileText } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { PRODUCTS } from "../data/products";
+import { formatProductName } from "../utils/productUtils";
 
 export const MobileQuickBar: React.FC = () => {
   const { addItem, setIsCartOpen, setIsQuotationOpen, products, activeDepartment } = useCart();
@@ -23,7 +24,7 @@ export const MobileQuickBar: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  if (!visible || activeDepartment !== "solar") return null;
+  if (!visible || activeDepartment !== "solar" || !starProduct) return null;
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-40 block md:hidden border-t border-border/80 bg-background/95 backdrop-blur-xl px-3 py-2 sm:px-4 sm:py-2.5 shadow-2xl animate-in slide-in-from-bottom duration-200">
@@ -37,13 +38,13 @@ export const MobileQuickBar: React.FC = () => {
           />
           <div className="overflow-hidden">
             <h4 className="text-xs font-bold text-foreground truncate font-serif leading-tight">
-              Rolinger 1200W
+              {formatProductName(starProduct.name)}
             </h4>
             <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-xs font-black text-solar font-serif">
+              <span className="text-xs font-black text-solar-ink font-serif">
                 ${starProduct.price.toFixed(2)}
               </span>
-              <span className="text-[10px] text-muted-foreground font-semibold">USD</span>
+              <span className="text-[11px] text-muted-foreground font-semibold">USD</span>
             </div>
           </div>
         </div>
@@ -56,7 +57,7 @@ export const MobileQuickBar: React.FC = () => {
             className="pressable inline-flex items-center gap-1 rounded-full border border-solar/40 bg-solar/15 hover:bg-solar hover:text-solar-foreground px-3 py-2 text-xs font-bold text-foreground cursor-pointer transition-colors"
             title="Abrir cotizador oficial"
           >
-            <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+            <FileText aria-hidden="true" className="h-3.5 w-3.5 text-solar-ink" />
             <span>Cotizar</span>
           </button>
 

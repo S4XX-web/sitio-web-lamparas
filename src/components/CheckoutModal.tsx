@@ -15,6 +15,7 @@ import {
 import { useCart } from "../context/CartContext";
 import { toast } from "sonner";
 import { ShippingCarrier } from "../types/store";
+import { applyServerPrices, registerRequest, toRequestItems } from "../services/requestService";
 
 // Número de WhatsApp oficial para recibir pedidos en Panamá (código +507)
 const WHATSAPP_PHONE = "50769893055";
@@ -77,6 +78,7 @@ export const CheckoutModal: React.FC = () => {
   const [orderNumber, setOrderNumber] = useState<string>("");
   const [savedOrderItems, setSavedOrderItems] = useState(items);
   const [savedTotal, setSavedTotal] = useState(total);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -150,12 +152,16 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
     return message;
   };
 
-  const handleOpenWhatsApp = (orderNum = orderNumber) => {
-    const text = encodeURIComponent(buildWhatsAppMessage(orderNum));
+  const handleOpenWhatsApp = (
+    orderNum = orderNumber,
+    currentItems = savedOrderItems,
+    currentTotal = savedTotal,
+  ) => {
+    const text = encodeURIComponent(buildWhatsAppMessage(orderNum, currentItems, currentTotal));
     window.open(`https://wa.me/${WHATSAPP_PHONE}?text=${text}`, "_blank");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanName = sanitizeInput(formData.fullName, 80);
     const cleanPhone = sanitizeInput(formData.phone, 30);
@@ -167,15 +173,71 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
       return;
     }
 
-    const generatedOrder = `SOL-PTY-${Math.floor(10000 + Math.random() * 90000)}`;
-    setOrderNumber(generatedOrder);
-    setSavedOrderItems([...items]);
-    setSavedTotal(total);
-    setStep("confirmed");
-    clearCart();
-    toast.success("¡Orden generada con éxito! Toca el botón para enviarla por WhatsApp.");
+    // Abrimos la pestaña de WhatsApp dentro del gesto del usuario: si esperamos a
+    // la respuesta del servidor, el navegador la bloquea como ventana emergente.
+    // Si el navegador la bloquea igual, whatsappWindow queda en null y la pantalla
+    // de confirmación ofrece el botón manual.
+    const whatsappWindow = window.open("", "_blank");
 
-    handleOpenWhatsApp(generatedOrder);
+    try {
+      setIsSubmitting(true);
+
+      // El servidor valida los precios y devuelve el número oficial del pedido.
+      const request = await registerRequest({
+        kind: "pedido",
+        customerName: cleanName,
+        customerPhone: cleanPhone,
+        notes: {
+          idNumber: sanitizeInput(formData.idNumber, 30),
+          province: formData.province,
+          city: cleanCity,
+          carrier: formData.carrier,
+          address: cleanAddress,
+          paymentPreference: formData.paymentPreference,
+          notes: sanitizeInput(formData.notes, 200),
+          channel: "portal-web",
+        },
+        items: toRequestItems(items),
+      });
+
+      const generatedOrder =
+        request?.code ?? `BORRADOR-${Math.floor(10000 + Math.random() * 90000)}`;
+      const finalItems = request ? applyServerPrices(items, request) : items;
+      const finalTotal = request ? request.total : total;
+
+      setOrderNumber(generatedOrder);
+      setSavedOrderItems(finalItems);
+      setSavedTotal(finalTotal);
+      setStep("confirmed");
+      clearCart();
+
+      const whatsappUrl = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(
+        buildWhatsAppMessage(generatedOrder, finalItems, finalTotal),
+      )}`;
+
+      if (whatsappWindow) {
+        whatsappWindow.location.href = whatsappUrl;
+        toast.success(
+          request
+            ? `Pedido ${request.code} registrado. Continúa la conversación en WhatsApp.`
+            : "Orden generada como BORRADOR (sin registro en el servidor). Continúa en WhatsApp.",
+        );
+      } else {
+        toast.success(
+          request
+            ? `Pedido ${request.code} registrado. Toca el botón para enviarlo por WhatsApp.`
+            : "Orden generada como BORRADOR (sin registro en el servidor). Toca el botón para enviarla por WhatsApp.",
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      whatsappWindow?.close();
+      toast.error(
+        "No se pudo registrar el pedido en el servidor. Revisa tu conexión e intenta de nuevo.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -225,7 +287,7 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
                   <span className="font-semibold text-foreground">
                     Lámparas en tu orden ({items.length} modelo{items.length > 1 ? "s" : ""}):
                   </span>
-                  <span className="font-bold text-solar text-sm">${total.toFixed(2)} USD</span>
+                  <span className="font-bold text-solar-ink text-sm">${total.toFixed(2)} USD</span>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs">
                   {items.map((i) => (
@@ -233,7 +295,7 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
                       key={i.product.id}
                       className="inline-flex items-center gap-1.5 rounded-full bg-background px-3 py-1 font-medium border border-border text-foreground shadow-xs"
                     >
-                      <strong className="text-solar">{i.quantity}x</strong> {i.product.name}
+                      <strong className="text-solar-ink">{i.quantity}x</strong> {i.product.name}
                     </span>
                   ))}
                 </div>
@@ -241,7 +303,7 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
 
               {/* Notice for direct order */}
               <div className="flex items-start gap-2.5 rounded-2xl bg-solar/10 border border-solar/30 p-3 text-xs text-foreground">
-                <Info aria-hidden="true" className="h-4 w-4 text-solar shrink-0 mt-0.5" />
+                <Info aria-hidden="true" className="h-4 w-4 text-solar-ink shrink-0 mt-0.5" />
                 <p className="leading-relaxed text-[11px] sm:text-xs">
                   <strong>Compra directa sin ingresar tarjetas en la web:</strong> Completa tus datos para generar la orden oficial y coordinar tu despacho a todo Panamá directamente por WhatsApp.
                 </p>
@@ -250,7 +312,7 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
               {/* 1. Customer Identification */}
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                  <User aria-hidden="true" className="h-4 w-4 text-solar" />
+                  <User aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                   1. Datos del Cliente
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -290,7 +352,7 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
                       onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-border bg-card px-3.5 py-2 text-xs text-foreground focus:border-solar focus:outline-none"
                     />
-                    <span className="text-[10px] text-muted-foreground">Requerido para retirar encomienda en agencia</span>
+                    <span className="text-[11px] text-muted-foreground">Requerido para retirar encomienda en agencia</span>
                   </div>
                 </div>
               </div>
@@ -298,7 +360,7 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
               {/* 2. Destination Province */}
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                  <MapPin aria-hidden="true" className="h-4 w-4 text-solar" />
+                  <MapPin aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                   2. Destino en Panamá
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -336,7 +398,7 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Truck aria-hidden="true" className="h-4 w-4 text-solar" />
+                    <Truck aria-hidden="true" className="h-4 w-4 text-solar-ink" />
                     3. Empresa de Encomienda (Despacho a Todo Panamá)
                   </h3>
                   <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
@@ -366,10 +428,10 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
                         <div className="flex items-center justify-between gap-1 mb-1.5">
                           <span className="text-xs font-bold text-foreground">{c.name}</span>
                         </div>
-                        <span className="self-start rounded-full bg-secondary px-2 py-0.5 text-[9px] font-bold text-secondary-foreground mb-1.5">
+                        <span className="self-start rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-secondary-foreground mb-1.5">
                           {c.badge}
                         </span>
-                        <p className="text-[10px] text-muted-foreground leading-tight">{c.description}</p>
+                        <p className="text-[11px] text-muted-foreground leading-tight">{c.description}</p>
                       </label>
                     );
                   })}
@@ -394,7 +456,7 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
                     onChange={(e) => setFormData({ ...formData, branchOrAddress: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-border bg-card px-3.5 py-2 text-xs text-foreground focus:border-solar focus:outline-none"
                   />
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground">
                     {isDoorToDoorAllowed
                       ? "Con Servientrega puedes recibir puerta a puerta en tu domicilio o retirar en agencia."
                       : "Transporte Ferguson y Uno Express operan únicamente con retiro en sucursal (para entrega a domicilio selecciona Servientrega)."}
@@ -404,17 +466,21 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
 
               {/* 4. Payment Preference */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                  <CreditCard aria-hidden="true" className="h-4 w-4 text-solar" />
-                  4. Método de Pago (Yappy o Transferencia ACH)
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1.5">
+                  <CreditCard aria-hidden="true" className="h-4 w-4 text-solar-ink" />
+                  4. Método de pago (Yappy o Transferencia ACH)
                 </h3>
+                <p className="mb-3 text-[11px] text-muted-foreground">
+                  Aceptamos estos medios. Elige el tuyo y el pago se confirma con el vendedor por
+                  WhatsApp: no se cobra nada en la web.
+                </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer text-center transition-all ${
+                    className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer text-center transition-all ${
                       formData.paymentPreference === "yappy"
                         ? "border-solar bg-solar/10 font-bold shadow-sm"
-                        : "border-border bg-card text-muted-foreground hover:bg-secondary"
+                        : "border-border bg-card text-muted-foreground hover:bg-secondary hover:border-solar/50"
                     }`}
                   >
                     <input
@@ -424,16 +490,19 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
                       onChange={() => setFormData({ ...formData, paymentPreference: "yappy" })}
                       className="sr-only"
                     />
-                    <Smartphone aria-hidden="true" className="h-5 w-5 mb-1 text-solar" />
+                    {formData.paymentPreference === "yappy" && (
+                      <CheckCircle2 aria-hidden="true" className="absolute right-2 top-2 h-3.5 w-3.5 text-solar-ink" />
+                    )}
+                    <Smartphone aria-hidden="true" className="h-5 w-5 mb-1 text-solar-ink" />
                     <span className="text-xs text-foreground">Yappy</span>
-                    <span className="text-[10px] text-muted-foreground">Banco General</span>
+                    <span className="text-[11px] text-muted-foreground">Banco General</span>
                   </label>
 
                   <label
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer text-center transition-all ${
+                    className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer text-center transition-all ${
                       formData.paymentPreference === "ach"
                         ? "border-solar bg-solar/10 font-bold shadow-sm"
-                        : "border-border bg-card text-muted-foreground hover:bg-secondary"
+                        : "border-border bg-card text-muted-foreground hover:bg-secondary hover:border-solar/50"
                     }`}
                   >
                     <input
@@ -443,9 +512,12 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
                       onChange={() => setFormData({ ...formData, paymentPreference: "ach" })}
                       className="sr-only"
                     />
+                    {formData.paymentPreference === "ach" && (
+                      <CheckCircle2 aria-hidden="true" className="absolute right-2 top-2 h-3.5 w-3.5 text-solar-ink" />
+                    )}
                     <Building2 aria-hidden="true" className="h-5 w-5 mb-1 text-primary" />
                     <span className="text-xs text-foreground">Transferencia ACH</span>
-                    <span className="text-[10px] text-muted-foreground">Cualquier banco</span>
+                    <span className="text-[11px] text-muted-foreground">Cualquier banco</span>
                   </label>
                 </div>
               </div>
@@ -467,10 +539,15 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-4 text-sm sm:text-base font-extrabold shadow-lg hover:shadow-xl transition-all hover:scale-101 cursor-pointer"
+                  disabled={isSubmitting}
+                  className="w-full flex items-center justify-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-4 text-sm sm:text-base font-extrabold shadow-lg hover:shadow-xl transition-all hover:scale-101 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <MessageCircle aria-hidden="true" className="h-5 w-5" />
-                  <span>Generar Orden y Enviar a WhatsApp • ${total.toFixed(2)} USD</span>
+                  <span>
+                    {isSubmitting
+                      ? "Registrando pedido..."
+                      : `Generar Orden y Enviar a WhatsApp • $${total.toFixed(2)} USD`}
+                  </span>
                   <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </button>
                 <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -532,7 +609,7 @@ Hola equipo de Solar y Hogar, ya genere mi orden desde la pagina web. Quedo aten
 
                 <div className="flex justify-between items-center pt-2 border-t border-border text-base font-extrabold text-foreground">
                   <span>Subtotal en Productos:</span>
-                  <span className="text-solar text-xl font-bold">${savedTotal.toFixed(2)} USD</span>
+                  <span className="text-solar-ink text-xl font-bold">${savedTotal.toFixed(2)} USD</span>
                 </div>
               </div>
 

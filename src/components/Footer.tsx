@@ -4,7 +4,8 @@ import { Link } from "@tanstack/react-router";
 import { useCart } from "../context/CartContext";
 
 export const Footer: React.FC = () => {
-  const { setActiveDepartment, setIsQuotationOpen } = useCart();
+  const { setActiveDepartment, setIsQuotationOpen, products } = useCart();
+  const solarCount = products.filter((product) => product.department === "solar").length;
 
   return (
     <footer className="border-t border-border bg-card text-card-foreground transition-colors duration-500 pb-20 md:pb-0">
@@ -13,7 +14,7 @@ export const Footer: React.FC = () => {
         <div className="mx-auto grid max-w-6xl grid-cols-1 sm:grid-cols-3 gap-8 text-center sm:text-left">
           {/* Item 1 */}
           <div className="flex items-center justify-center sm:justify-start gap-3.5">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-solar/15 text-solar shrink-0">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-solar/15 text-solar-ink shrink-0">
               <Truck aria-hidden="true" className="h-6 w-6 text-amber-500" />
             </span>
             <div>
@@ -89,7 +90,7 @@ export const Footer: React.FC = () => {
               Cero cables, $0 en tu factura de luz y preparación integral para tus espacios.
             </p>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <MapPin aria-hidden="true" className="h-3.5 w-3.5 text-solar" />
+              <MapPin aria-hidden="true" className="h-3.5 w-3.5 text-solar-ink" />
               <span>Panamá • Cobertura de envíos a nivel nacional</span>
             </div>
           </div>
@@ -104,7 +105,7 @@ export const Footer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveDepartment("general")}
-                  className="hover:text-solar transition-colors font-semibold text-foreground cursor-pointer text-left"
+                  className="hover:text-solar-ink transition-colors font-semibold text-foreground cursor-pointer text-left"
                 >
                   Portada Principal (Presentación General)
                 </button>
@@ -113,16 +114,16 @@ export const Footer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveDepartment("solar")}
-                  className="hover:text-solar transition-colors cursor-pointer text-left"
+                  className="hover:text-solar-ink transition-colors cursor-pointer text-left"
                 >
-                  Iluminación & Energía Solar (3 Modelos)
+                  Iluminación & Energía Solar ({solarCount} {solarCount === 1 ? "Modelo" : "Modelos"})
                 </button>
               </li>
               <li>
                 <button
                   type="button"
                   onClick={() => setActiveDepartment("muebles")}
-                  className="hover:text-solar transition-colors cursor-pointer text-left"
+                  className="hover:text-solar-ink transition-colors cursor-pointer text-left"
                 >
                   Muebles & Terraza (Próximo Lanzamiento)
                 </button>
@@ -131,7 +132,7 @@ export const Footer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveDepartment("accesorios")}
-                  className="hover:text-solar transition-colors cursor-pointer text-left"
+                  className="hover:text-solar-ink transition-colors cursor-pointer text-left"
                 >
                   Accesorios & Decoración (Próximo Lanzamiento)
                 </button>
@@ -140,7 +141,7 @@ export const Footer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsQuotationOpen(true)}
-                  className="hover:text-solar transition-colors font-bold text-foreground cursor-pointer text-left"
+                  className="hover:text-solar-ink transition-colors font-bold text-foreground cursor-pointer text-left"
                 >
                   Generador de Cotización Oficial (PDF)
                 </button>
@@ -174,7 +175,7 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-4">
             <p className="flex items-center gap-1">
               <span>Energía limpia y soluciones para tu hogar</span>
-              <Heart aria-hidden="true" className="h-3 w-3 text-solar fill-solar" />
+              <Heart aria-hidden="true" className="h-3 w-3 text-solar-ink fill-solar" />
             </p>
             <Link
               to="/admin"

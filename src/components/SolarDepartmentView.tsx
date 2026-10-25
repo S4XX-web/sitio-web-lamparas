@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowLeft, Sun, Layers, Sparkles, Truck, HelpCircle, CheckCircle2 } from "lucide-react";
+import { useCart } from "../context/CartContext";
 import { Hero } from "./Hero";
 import { ProductCatalog } from "./ProductCatalog";
 import { ProductAnatomy } from "./ProductAnatomy";
@@ -14,6 +15,9 @@ interface SolarDepartmentViewProps {
 }
 
 export const SolarDepartmentView: React.FC<SolarDepartmentViewProps> = ({ onBackToGeneral }) => {
+  const { products } = useCart();
+  const solarCount = products.filter((product) => product.department === "solar").length;
+
   return (
     <div className="animate-in fade-in duration-300">
       {/* Sticky Department Top Navigation Bar */}
@@ -22,7 +26,7 @@ export const SolarDepartmentView: React.FC<SolarDepartmentViewProps> = ({ onBack
           <button
             type="button"
             onClick={onBackToGeneral}
-            className="pressable inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 sm:px-4 sm:py-1.5 text-xs font-bold text-foreground hover:border-solar hover:text-solar cursor-pointer transition-colors shadow-xs shrink-0"
+            className="pressable inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 sm:px-4 sm:py-1.5 text-xs font-bold text-foreground hover:border-solar hover:text-solar-ink cursor-pointer transition-colors shadow-xs shrink-0"
           >
             <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">← Volver a la Portada</span>
@@ -36,22 +40,22 @@ export const SolarDepartmentView: React.FC<SolarDepartmentViewProps> = ({ onBack
             <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-foreground font-mono truncate">
               <span className="hidden md:inline">Departamento: </span>Iluminación Solar
             </span>
-            <span className="hidden sm:inline-block rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-extrabold shrink-0">
-              3 Modelos
+            <span className="hidden sm:inline-block rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[11px] font-extrabold shrink-0">
+              {solarCount} {solarCount === 1 ? "Modelo" : "Modelos"}
             </span>
           </div>
 
           {/* Quick Sub-Section Jumps */}
           <div className="hidden lg:flex items-center gap-3 text-xs font-semibold text-muted-foreground">
-            <a href="#catalogo" className="hover:text-solar transition-colors">Catálogo</a>
+            <a href="#catalogo" className="hover:text-solar-ink transition-colors">Catálogo</a>
             <span>•</span>
-            <a href="#anatomia" className="hover:text-solar transition-colors">Tecnología</a>
+            <a href="#anatomia" className="hover:text-solar-ink transition-colors">Tecnología</a>
             <span>•</span>
-            <a href="#simulador" className="hover:text-solar transition-colors">Simulador</a>
+            <a href="#simulador" className="hover:text-solar-ink transition-colors">Simulador</a>
             <span>•</span>
-            <a href="#envios-instalaciones" className="hover:text-solar transition-colors">Envíos</a>
+            <a href="#envios-instalaciones" className="hover:text-solar-ink transition-colors">Envíos</a>
             <span>•</span>
-            <a href="#faq" className="hover:text-solar transition-colors">FAQ</a>
+            <a href="#faq" className="hover:text-solar-ink transition-colors">FAQ</a>
           </div>
         </div>
       </div>

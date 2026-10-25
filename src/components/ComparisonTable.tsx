@@ -106,7 +106,7 @@ export const ComparisonTable: React.FC = () => {
         </div>
 
         {/* Mobile Scroll Indicator */}
-        <div className="mb-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-solar md:hidden">
+        <div className="mb-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-solar-ink md:hidden">
           <ArrowLeftRight aria-hidden="true" className="h-3.5 w-3.5 animate-pulse" />
           <span>Desliza la tabla hacia los lados para comparar los 3 modelos</span>
         </div>
@@ -122,7 +122,7 @@ export const ComparisonTable: React.FC = () => {
                 {solarModels.map((prod) => (
                   <th key={prod.id} className="p-4 sm:p-5 text-center w-1/4 border-l border-border/70">
                     <div className="flex flex-col items-center">
-                      <span className="rounded-full bg-solar/20 px-2.5 py-0.5 text-[10px] font-extrabold text-solar mb-2">
+                      <span className="rounded-full bg-solar/20 px-2.5 py-0.5 text-[11px] font-extrabold text-solar-ink mb-2">
                         {prod.badge}
                       </span>
                       <img
@@ -135,7 +135,7 @@ export const ComparisonTable: React.FC = () => {
                         {prod.name}
                       </h4>
                       <div className="mt-1 flex items-baseline gap-1">
-                        <span className="text-lg font-extrabold text-solar font-serif">
+                        <span className="text-lg font-extrabold text-solar-ink font-serif">
                           ${prod.price.toFixed(2)}
                         </span>
                         <span className="text-xs text-muted-foreground font-semibold">USD</span>
@@ -170,7 +170,7 @@ export const ComparisonTable: React.FC = () => {
                   className={idx % 2 === 0 ? "bg-card" : "bg-secondary/30"}
                 >
                   <td className="sticky left-0 z-10 bg-card/95 backdrop-blur-sm p-3 sm:p-5 font-semibold text-foreground flex items-center gap-2">
-                    <row.icon aria-hidden="true" className="h-4 w-4 text-solar shrink-0" />
+                    <row.icon aria-hidden="true" className="h-4 w-4 text-solar-ink shrink-0" />
                     <span>{row.feature}</span>
                   </td>
                   {row.values.map((val, vIdx) => (

@@ -2,19 +2,18 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import React, { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { Product, ProductDepartment } from "../types/store";
+import { saveCatalog } from "../services/productCatalogService";
 import {
-  isSellerAuthenticated,
-  setSellerAuthenticated,
-  verifyPin,
-  changeSellerPin,
-  getStoredPin,
-  saveCatalog,
-} from "../services/productCatalogService";
+  getSellerSession,
+  signInSeller,
+  signOutSeller,
+  onSellerAuthChange,
+  isCloudAuthAvailable,
+  type SellerSession,
+} from "../services/sellerAuth";
 import { toast } from "sonner";
 import {
   Lock,
-  Unlock,
-  KeyRound,
   Plus,
   Trash2,
   Edit,
@@ -51,6 +50,8 @@ import {
   ExternalLink,
   Cloud,
   CloudOff,
+  ClipboardList,
+  ChevronDown,
 } from "lucide-react";
 import { isSolarProduct, getDepartmentLabel } from "../utils/productUtils";
 import {
@@ -61,6 +62,8 @@ import {
   uploadImageToSupabase,
 } from "../lib/supabase";
 import { fetchLiveCatalogFromSupabase } from "../services/productCatalogService";
+import { listRequests, type RequestSummary } from "../services/requestService";
+import schemaSql from "../../supabase-schema.sql?raw";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -76,11 +79,15 @@ function AdminPage() {
   const navigate = useNavigate();
   const { products, updateProduct, addProduct, deleteProduct, resetProducts } = useCart();
 
-  // Estado de autenticación
+  // Estado de autenticación (Supabase Auth: correo + contraseña)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [pinInput, setPinInput] = useState<string>("");
-  const [pinError, setPinError] = useState<string>("");
-  const [showPin, setShowPin] = useState<boolean>(false);
+  const [emailInput, setEmailInput] = useState<string>("");
+  const [passwordInput, setPasswordInput] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string>("");
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState<boolean>(false);
+  const [sellerEmail, setSellerEmail] = useState<string>("");
 
   // Filtros de búsqueda
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -89,12 +96,6 @@ function AdminPage() {
   // Modal de edición / creación de producto
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false);
-
-  // Modal para cambiar PIN
-  const [isChangePinOpen, setIsChangePinOpen] = useState<boolean>(false);
-  const [oldPinInput, setOldPinInput] = useState<string>("");
-  const [newPinInput, setNewPinInput] = useState<string>("");
-  const [confirmPinInput, setConfirmPinInput] = useState<string>("");
 
   // Modal para sincronizar entre dispositivos (móvil y PC)
   const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
@@ -113,13 +114,42 @@ function AdminPage() {
   const [inlinePrices, setInlinePrices] = useState<Record<string, { price: string; originalPrice: string }>>({});
 
   useEffect(() => {
-    setIsAuthenticated(isSellerAuthenticated());
+    let active = true;
+    let settled = false;
+
+    const applySession = (session: SellerSession | null) => {
+      if (!active) return;
+      settled = true;
+      setIsAuthenticated(Boolean(session));
+      setSellerEmail(session?.email ?? "");
+      setIsAuthChecking(false);
+    };
+
+    getSellerSession()
+      .then(applySession)
+      .catch(() => {
+        if (active) setIsAuthChecking(false);
+      });
+    const unsubscribe = onSellerAuthChange(applySession);
+
+    // Red de seguridad: si la comprobación de sesión no responde (red lenta,
+    // Supabase inaccesible), mostramos el formulario en vez de quedarnos colgados.
+    const timeout = window.setTimeout(() => {
+      if (active && !settled) setIsAuthChecking(false);
+    }, 3000);
+
     const cfg = getSupabaseConfig();
     if (cfg) {
       setSupabaseUrlInput(cfg.url);
       setSupabaseKeyInput(cfg.anonKey);
       setSupabaseConnected(true);
     }
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      unsubscribe();
+    };
   }, []);
 
   // Actualizar inline prices cuando cambian los productos
@@ -134,42 +164,89 @@ function AdminPage() {
     setInlinePrices(map);
   }, [products]);
 
-  // Manejar Login con PIN
-  const handleLogin = (e?: React.FormEvent) => {
+  // Solicitudes (cotizaciones y pedidos) registradas en el servidor
+  const [requests, setRequests] = useState<RequestSummary[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState<boolean>(false);
+  const [requestsError, setRequestsError] = useState<string>("");
+  const [isRequestsOpen, setIsRequestsOpen] = useState<boolean>(true);
+
+  const loadRequests = React.useCallback(async () => {
+    if (!isAuthenticated || !supabaseConnected) return;
+    setRequestsLoading(true);
+    setRequestsError("");
+    try {
+      const list = await listRequests(50);
+      if (list === null) {
+        setRequests([]);
+        setRequestsError(
+          "Ejecuta la sección 9 de supabase-schema.sql para activar el registro de solicitudes.",
+        );
+      } else {
+        setRequests(list);
+      }
+    } catch (err) {
+      console.error(err);
+      setRequestsError(
+        err instanceof Error ? err.message : "No se pudieron cargar las solicitudes.",
+      );
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, [isAuthenticated, supabaseConnected]);
+
+  useEffect(() => {
+    if (isAuthenticated && supabaseConnected) void loadRequests();
+  }, [isAuthenticated, supabaseConnected, loadRequests]);
+
+  // Manejar inicio de sesión con Supabase Auth
+  const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (verifyPin(pinInput)) {
-      setSellerAuthenticated(true);
+    if (isAuthSubmitting) return;
+
+    setAuthError("");
+    setIsAuthSubmitting(true);
+
+    const res = await signInSeller(emailInput, passwordInput);
+    setIsAuthSubmitting(false);
+
+    if (res.session) {
       setIsAuthenticated(true);
-      setPinError("");
-      setPinInput("");
+      setSellerEmail(res.session.email ?? emailInput.trim());
+      setPasswordInput("");
       toast.success("¡Bienvenido al Panel de Vendedor!", {
         description: "Acceso concedido a la gestión de productos y precios.",
       });
     } else {
-      setPinError("El PIN ingresado es incorrecto.");
-      toast.error("PIN Incorrecto", {
-        description: "Verifica el PIN de acceso del vendedor.",
+      setAuthError(res.error || "No se pudo iniciar sesión.");
+      toast.error("Acceso denegado", {
+        description: res.error || "Verifica tus credenciales de vendedor.",
       });
     }
   };
 
-  const handleLogout = () => {
-    setSellerAuthenticated(false);
+  const handleLogout = async () => {
+    await signOutSeller();
     setIsAuthenticated(false);
+    setSellerEmail("");
     toast.info("Sesión cerrada");
   };
 
-  const handlePinKeypad = (digit: string) => {
-    if (digit === "CLEAR") {
-      setPinInput("");
-      setPinError("");
-    } else if (digit === "BACK") {
-      setPinInput((prev) => prev.slice(0, -1));
-    } else {
-      if (pinInput.length < 8) {
-        setPinInput((prev) => prev + digit);
-      }
+  // Guardar credenciales de Supabase desde la pantalla de acceso
+  const handleSaveSupabaseFromLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanUrl = supabaseUrlInput.trim().replace(/\/+$/, "");
+    const cleanKey = supabaseKeyInput.trim();
+
+    if (!cleanUrl || !cleanKey) {
+      toast.error("Completa la URL y la clave pública de Supabase");
+      return;
     }
+
+    saveSupabaseConfig(cleanUrl, cleanKey);
+    toast.success("Conexión guardada", {
+      description: "Ahora inicia sesión con tu cuenta de vendedor.",
+    });
+    setTimeout(() => window.location.reload(), 600);
   };
 
   // Guardado rápido de precio inline
@@ -408,25 +485,6 @@ Instrucciones:
     }
   };
 
-  // Cambiar PIN de vendedor
-  const handleChangePinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPinInput !== confirmPinInput) {
-      toast.error("El nuevo PIN y la confirmación no coinciden");
-      return;
-    }
-    const res = changeSellerPin(oldPinInput, newPinInput);
-    if (res.success) {
-      toast.success("¡PIN de vendedor cambiado correctamente!");
-      setIsChangePinOpen(false);
-      setOldPinInput("");
-      setNewPinInput("");
-      setConfirmPinInput("");
-    } else {
-      toast.error(res.error || "Error al cambiar el PIN");
-    }
-  };
-
   // Subir una o múltiples fotos a la galería (Nube o local)
   const handleMultipleImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -592,64 +650,18 @@ Instrucciones:
     }
   };
 
-  // Copiar esquema SQL de Supabase
-  const handleCopySchemaSql = () => {
-    const sqlScript = `-- 1. Crear tabla de productos
-CREATE TABLE IF NOT EXISTS public.products (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  tagline TEXT DEFAULT '',
-  department TEXT DEFAULT 'solar',
-  category TEXT DEFAULT 'farolas',
-  price NUMERIC NOT NULL DEFAULT 0,
-  original_price NUMERIC DEFAULT 0,
-  rating NUMERIC DEFAULT 5.0,
-  reviews_count INTEGER DEFAULT 0,
-  image TEXT DEFAULT '',
-  images JSONB DEFAULT '[]'::jsonb,
-  badge TEXT DEFAULT '',
-  in_stock BOOLEAN DEFAULT true,
-  lumens TEXT DEFAULT '',
-  battery_life TEXT DEFAULT '',
-  waterproof TEXT DEFAULT '',
-  description TEXT DEFAULT '',
-  features JSONB DEFAULT '[]'::jsonb,
-  material TEXT DEFAULT '',
-  dimensions TEXT DEFAULT '',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Permitir lectura pública del catálogo" ON public.products;
-CREATE POLICY "Permitir lectura pública del catálogo" ON public.products FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Permitir gestión de productos a vendedores" ON public.products;
-CREATE POLICY "Permitir gestión de productos a vendedores" ON public.products FOR ALL USING (true) WITH CHECK (true);
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables 
-    WHERE pubname = 'supabase_realtime' AND tablename = 'products'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
-  END IF;
-END $$;
-
-INSERT INTO storage.buckets (id, name, public) VALUES ('products', 'products', true) ON CONFLICT (id) DO NOTHING;
-
-DROP POLICY IF EXISTS "Imágenes de productos públicas" ON storage.objects;
-CREATE POLICY "Imágenes de productos públicas" ON storage.objects FOR SELECT USING (bucket_id = 'products');
-
-DROP POLICY IF EXISTS "Subida de fotos de productos" ON storage.objects;
-CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'products');`;
-
-    navigator.clipboard.writeText(sqlScript);
-    toast.success("Script SQL copiado al portapapeles", {
-      description: "Pégalo en el SQL Editor de tu proyecto en supabase.com y dale a RUN.",
-    });
+  // Copiar el esquema SQL canónico (importado como texto desde supabase-schema.sql)
+  const handleCopySchemaSql = async () => {
+    try {
+      await navigator.clipboard.writeText(schemaSql);
+      toast.success("Script SQL copiado al portapapeles", {
+        description: "Pégalo en el SQL Editor de tu proyecto en supabase.com y dale a RUN.",
+      });
+    } catch {
+      toast.error("No se pudo copiar el script", {
+        description: "Abre supabase-schema.sql en el repositorio y cópialo desde ahí.",
+      });
+    }
   };
 
   // Filtro de productos
@@ -677,101 +689,186 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
   const homeCount = products.filter((p) => p.department === "muebles" || p.department === "accesorios").length;
 
   // ----------------------------------------------------------------------
-  // PANTALLA DE ACCESO CON PIN (BLOQUEADO)
+  // PANTALLA DE ACCESO (SUPABASE AUTH)
   // ----------------------------------------------------------------------
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-slate-400">
+          <RefreshCw className="w-6 h-6 animate-spin text-amber-400" />
+          <p className="text-sm">Verificando sesión…</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
+    const cloudReady = isCloudAuthAvailable();
+
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
         {/* Glow de fondo */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[140px] pointer-events-none" />
 
-        <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10 text-center">
+        <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10">
           {/* Logo y Encabezado */}
-          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-            <Lock className="w-8 h-8" />
-          </div>
-
-          <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-400 bg-amber-500/10 rounded-full mb-2">
-            Área Restringida
-          </span>
-
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-2">
-            Panel de Vendedor
-          </h1>
-
-          <p className="text-sm text-slate-400 mb-6">
-            Ingresa tu PIN de seguridad para gestionar precios, inventario y catálogo.
-          </p>
-
-          {/* Formulario PIN */}
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="relative">
-              <input
-                type={showPin ? "text" : "password"}
-                maxLength={8}
-                value={pinInput}
-                onChange={(e) => {
-                  setPinInput(e.target.value);
-                  setPinError("");
-                }}
-                placeholder="Ingresar PIN"
-                className="w-full text-center text-2xl tracking-[0.3em] font-mono py-3.5 px-4 bg-slate-950/70 border border-slate-700 rounded-2xl text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setShowPin(!showPin)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
-                title="Mostrar/Ocultar PIN"
-              >
-                {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Lock className="w-8 h-8" />
             </div>
 
-            {pinError && (
-              <p className="text-sm text-red-400 flex items-center justify-center gap-1.5 animate-in fade-in">
-                <AlertTriangle className="w-4 h-4" />
-                {pinError}
-              </p>
-            )}
+            <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-400 bg-amber-500/10 rounded-full mb-2">
+              Área Restringida
+            </span>
 
-            {/* Teclado numérico táctil para celular */}
-            <div className="grid grid-cols-3 gap-2.5 max-w-[280px] mx-auto pt-2">
-              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "CLEAR", "0", "BACK"].map((btn) => (
-                <button
-                  key={btn}
-                  type="button"
-                  onClick={() => handlePinKeypad(btn)}
-                  className={`py-3 rounded-xl font-semibold text-lg transition-all active:scale-95 ${
-                    btn === "CLEAR" || btn === "BACK"
-                      ? "bg-slate-800/60 text-slate-400 hover:bg-slate-800 hover:text-white text-xs uppercase"
-                      : "bg-slate-800/80 text-white hover:bg-slate-700/80"
-                  }`}
-                >
-                  {btn === "BACK" ? "⌫" : btn === "CLEAR" ? "Borrar" : btn}
-                </button>
-              ))}
-            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-white mb-2">
+              Panel de Vendedor
+            </h1>
 
-            <button
-              type="submit"
-              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-base shadow-lg shadow-amber-500/20 transition-all transform active:scale-98 flex items-center justify-center gap-2"
-            >
-              <KeyRound className="w-5 h-5" />
-              Desbloquear Panel
-            </button>
-          </form>
-
-          {/* Ayuda de PIN por defecto */}
-          <div className="mt-6 pt-5 border-t border-slate-800/80 text-xs text-slate-500">
-            <p>
-              PIN inicial predeterminado: <strong className="text-amber-400/90 font-mono">2026</strong>
+            <p className="text-sm text-slate-400 mb-6">
+              Inicia sesión con tu cuenta de vendedor para gestionar precios, inventario y catálogo.
             </p>
-            <p className="mt-1">Podrás cambiarlo en cualquier momento dentro del panel.</p>
           </div>
+
+          {cloudReady ? (
+            <>
+              {/* Formulario de acceso */}
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label htmlFor="seller-email" className="text-xs text-slate-400 block mb-1.5">
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="seller-email"
+                    type="email"
+                    autoComplete="username"
+                    required
+                    value={emailInput}
+                    onChange={(e) => {
+                      setEmailInput(e.target.value);
+                      setAuthError("");
+                    }}
+                    placeholder="vendedor@correo.com"
+                    className="w-full py-3 px-4 bg-slate-950/70 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="seller-password" className="text-xs text-slate-400 block mb-1.5">
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="seller-password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      required
+                      value={passwordInput}
+                      onChange={(e) => {
+                        setPasswordInput(e.target.value);
+                        setAuthError("");
+                      }}
+                      placeholder="••••••••"
+                      className="w-full py-3 px-4 pr-11 bg-slate-950/70 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
+                      title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {authError && (
+                  <p
+                    role="alert"
+                    className="text-sm text-red-400 flex items-center justify-center gap-1.5 animate-in fade-in"
+                  >
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    {authError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isAuthSubmitting}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-base shadow-lg shadow-amber-500/20 transition-all transform active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isAuthSubmitting ? (
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Lock className="w-5 h-5" />
+                  )}
+                  {isAuthSubmitting ? "Verificando…" : "Iniciar Sesión"}
+                </button>
+              </form>
+
+              <div className="mt-6 pt-5 border-t border-slate-800/80 text-xs text-slate-500 space-y-1">
+                <p>
+                  El acceso se gestiona en Supabase → <strong className="text-slate-300">Authentication</strong>.
+                </p>
+                <p>Si olvidaste tu contraseña, pídele al administrador que la restablezca.</p>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Sin Supabase configurado: permitir conectar la nube antes de entrar */}
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-300 text-xs leading-relaxed">
+                <p className="font-bold text-amber-300 mb-1">Supabase no está configurado</p>
+                <p>
+                  El panel usa autenticación segura en la nube. Conecta tu proyecto para poder iniciar
+                  sesión como vendedor.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveSupabaseFromLogin} className="space-y-4 mt-4">
+                <div>
+                  <label htmlFor="sb-url" className="text-xs text-slate-400 block mb-1.5">
+                    URL del proyecto
+                  </label>
+                  <input
+                    id="sb-url"
+                    type="url"
+                    required
+                    value={supabaseUrlInput}
+                    onChange={(e) => setSupabaseUrlInput(e.target.value)}
+                    placeholder="https://tuproyecto.supabase.co"
+                    className="w-full py-3 px-4 bg-slate-950/70 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="sb-key" className="text-xs text-slate-400 block mb-1.5">
+                    Clave pública (anon / publishable)
+                  </label>
+                  <input
+                    id="sb-key"
+                    type="password"
+                    required
+                    value={supabaseKeyInput}
+                    onChange={(e) => setSupabaseKeyInput(e.target.value)}
+                    placeholder="sb_publishable_..."
+                    className="w-full py-3 px-4 bg-slate-950/70 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-base shadow-lg shadow-amber-500/20 transition-all transform active:scale-98 flex items-center justify-center gap-2"
+                >
+                  <Database className="w-5 h-5" />
+                  Guardar conexión
+                </button>
+              </form>
+            </>
+          )}
 
           {/* Enlace para volver a la tienda */}
-          <div className="mt-5">
+          <div className="mt-5 text-center">
             <Link
               to="/"
               className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1.5 transition-colors"
@@ -800,7 +897,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-base tracking-tight text-white">SOLAR & HOGAR</span>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-slate-950 rounded-md">
+                <span className="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider bg-amber-500 text-slate-950 rounded-md">
                   Panel Vendedor
                 </span>
               </div>
@@ -839,14 +936,14 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
               )}
             </button>
 
-            <button
-              onClick={() => setIsChangePinOpen(true)}
-              className="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors flex items-center gap-1.5"
-              title="Cambiar PIN de seguridad"
-            >
-              <KeyRound className="w-4 h-4 text-amber-400" />
-              <span className="hidden md:inline">Cambiar PIN</span>
-            </button>
+            {sellerEmail && (
+              <span
+                className="hidden lg:inline-flex max-w-[220px] truncate px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/60 text-[11px] font-medium text-slate-300"
+                title={`Sesión iniciada como ${sellerEmail}`}
+              >
+                {sellerEmail}
+              </span>
+            )}
 
             <button
               onClick={handleLogout}
@@ -971,6 +1068,139 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
             </div>
           </div>
         )}
+
+        {/* Solicitudes registradas (cotizaciones y pedidos) */}
+        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+            <button
+              type="button"
+              onClick={() => setIsRequestsOpen((v) => !v)}
+              className="flex flex-1 items-center gap-3 text-left cursor-pointer"
+              aria-expanded={isRequestsOpen}
+            >
+              <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shrink-0">
+                <ClipboardList className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-white flex items-center gap-2">
+                  Solicitudes registradas
+                  {requests.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-md bg-sky-500/15 text-sky-300 text-[11px] font-bold">
+                      {requests.length}
+                    </span>
+                  )}
+                </p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  Cotizaciones y pedidos con precios validados por el servidor.
+                </p>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ${
+                  isRequestsOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void loadRequests()}
+              disabled={requestsLoading}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Volver a cargar las solicitudes"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${requestsLoading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Actualizar</span>
+            </button>
+          </div>
+
+          {isRequestsOpen && (
+            <div className="border-t border-slate-800 px-4 py-3">
+              {requestsError ? (
+                <p className="text-xs text-amber-300 py-2 leading-relaxed">{requestsError}</p>
+              ) : requests.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2 leading-relaxed">
+                  {requestsLoading
+                    ? "Cargando solicitudes..."
+                    : "Aún no hay cotizaciones ni pedidos registrados. Cada documento que generes desde la tienda aparecerá aquí con su número oficial."}
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs min-w-[760px]">
+                    <thead>
+                      <tr className="text-[11px] uppercase tracking-wider text-slate-500">
+                        <th className="py-2 pr-3 font-bold">Código</th>
+                        <th className="py-2 pr-3 font-bold">Tipo</th>
+                        <th className="py-2 pr-3 font-bold">Cliente</th>
+                        <th className="py-2 pr-3 font-bold">Productos</th>
+                        <th className="py-2 pr-3 font-bold text-right">Total</th>
+                        <th className="py-2 font-bold">Fecha</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/70">
+                      {requests.map((request) => (
+                        <tr key={request.id} className="align-top">
+                          <td className="py-2.5 pr-3">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(request.code);
+                                  toast.success(`Código ${request.code} copiado`);
+                                } catch {
+                                  toast.error("No se pudo copiar el código");
+                                }
+                              }}
+                              className="font-mono font-bold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1 cursor-pointer"
+                              title="Copiar código"
+                            >
+                              {request.code}
+                              <Copy className="w-3 h-3 opacity-60" />
+                            </button>
+                          </td>
+                          <td className="py-2.5 pr-3">
+                            <span
+                              className={`px-1.5 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap ${
+                                request.kind === "pedido"
+                                  ? "bg-emerald-500/15 text-emerald-300"
+                                  : "bg-sky-500/15 text-sky-300"
+                              }`}
+                            >
+                              {request.kind === "pedido" ? "Pedido" : "Cotización"}
+                            </span>
+                          </td>
+                          <td className="py-2.5 pr-3 text-slate-200">
+                            <span className="block font-semibold truncate max-w-[170px]">
+                              {request.customerName}
+                            </span>
+                            {request.customerPhone && (
+                              <span className="block text-[11px] text-slate-500">
+                                {request.customerPhone}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 pr-3 text-slate-400 max-w-[260px]">
+                            {request.items
+                              .map((item) => `${item.quantity}× ${item.name}`)
+                              .join(", ")}
+                          </td>
+                          <td className="py-2.5 pr-3 text-right font-bold text-white whitespace-nowrap">
+                            ${request.total.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 text-slate-400 whitespace-nowrap">
+                            {new Date(request.createdAt).toLocaleString("es-PA", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Barra de herramientas y filtros */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
@@ -1100,7 +1330,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                       />
                       {!prod.inStock && (
                         <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-[1px] flex items-center justify-center">
-                          <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Agotado</span>
+                          <span className="text-[11px] font-bold text-red-400 uppercase tracking-wider">Agotado</span>
                         </div>
                       )}
                     </div>
@@ -1108,7 +1338,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap mb-1">
                         <span
-                          className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md ${
+                          className={`px-2 py-0.5 text-[11px] font-bold uppercase rounded-md ${
                             prod.department === "muebles"
                               ? "bg-purple-500/20 text-purple-300"
                               : prod.department === "accesorios"
@@ -1119,7 +1349,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                           {prod.department || "solar"}
                         </span>
                         {prod.badge && (
-                          <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-800 text-slate-300 rounded-md truncate max-w-[120px]">
+                          <span className="px-2 py-0.5 text-[11px] font-semibold bg-slate-800 text-slate-300 rounded-md truncate max-w-[120px]">
                             {prod.badge}
                           </span>
                         )}
@@ -1137,7 +1367,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                   <div className="px-4 py-3 bg-slate-950/60 border-t border-b border-slate-800/80 space-y-2.5">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] font-medium text-slate-400 block mb-1">Precio Venta ($)</label>
+                        <label className="text-[11px] font-medium text-slate-400 block mb-1">Precio Venta ($)</label>
                         <div className="relative">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-amber-400 font-bold">
                             $
@@ -1157,7 +1387,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-medium text-slate-400 block mb-1">PVP Tachado ($)</label>
+                        <label className="text-[11px] font-medium text-slate-400 block mb-1">PVP Tachado ($)</label>
                         <div className="relative">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">$</span>
                           <input
@@ -1570,14 +1800,14 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
 
                           {/* Badge de Portada o Botón para hacer Portada */}
                           {isCover ? (
-                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-extrabold text-[10px] shadow-md uppercase tracking-wider">
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-extrabold text-[11px] shadow-md uppercase tracking-wider">
                               Portada
                             </span>
                           ) : (
                             <button
                               type="button"
                               onClick={() => handleSetCoverImage(imgUrl)}
-                              className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 hover:bg-amber-500 hover:text-slate-950 text-white font-semibold text-[10px] shadow opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                              className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 hover:bg-amber-500 hover:text-slate-950 text-white font-semibold text-[11px] shadow opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                               title="Marcar como foto de portada"
                             >
                               Hacer Portada
@@ -1594,7 +1824,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
 
-                          <div className="absolute bottom-1 right-2 text-[10px] font-mono text-white/70 drop-shadow">
+                          <div className="absolute bottom-1 right-2 text-[11px] font-mono text-white/70 drop-shadow">
                             #{idx + 1}
                           </div>
                         </div>
@@ -1651,82 +1881,6 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                 >
                   <Save className="w-4 h-4" />
                   {isCreatingNew ? "Publicar Producto" : "Guardar Cambios"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------------------------------------------------------------- */}
-      {/* MODAL CAMBIAR PIN DE VENDEDOR                                          */}
-      {/* ---------------------------------------------------------------------- */}
-      {isChangePinOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-amber-400" />
-                Cambiar PIN de Vendedor
-              </h3>
-              <button
-                onClick={() => setIsChangePinOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleChangePinSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">PIN Actual</label>
-                <input
-                  type="password"
-                  required
-                  value={oldPinInput}
-                  onChange={(e) => setOldPinInput(e.target.value)}
-                  placeholder="PIN actual"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Nuevo PIN (Mínimo 4 caracteres)</label>
-                <input
-                  type="password"
-                  required
-                  value={newPinInput}
-                  onChange={(e) => setNewPinInput(e.target.value)}
-                  placeholder="Nuevo PIN"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Confirmar Nuevo PIN</label>
-                <input
-                  type="password"
-                  required
-                  value={confirmPinInput}
-                  onChange={(e) => setConfirmPinInput(e.target.value)}
-                  placeholder="Repite el nuevo PIN"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsChangePinOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold"
-                >
-                  Guardar PIN
                 </button>
               </div>
             </form>
@@ -1868,7 +2022,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                 <div>
                   <h3 className="text-base font-bold text-white flex items-center gap-2">
                     Base de Datos en Tiempo Real
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <span className="text-[11px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                       Supabase Cloud
                     </span>
                   </h3>
@@ -1939,7 +2093,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                     placeholder="https://abcdefghijklm.supabase.co"
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 font-mono focus:outline-none focus:border-emerald-400"
                   />
-                  <span className="text-[10px] text-slate-500 block mt-1">
+                  <span className="text-[11px] text-slate-500 block mt-1">
                     La encuentras en Supabase → Project Settings → API → Project URL
                   </span>
                 </div>
@@ -1956,7 +2110,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                     placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 font-mono focus:outline-none focus:border-emerald-400"
                   />
-                  <span className="text-[10px] text-slate-500 block mt-1">
+                  <span className="text-[11px] text-slate-500 block mt-1">
                     La encuentras en Supabase → Project Settings → API → Project API keys → <code>anon public</code>
                   </span>
                 </div>
@@ -1988,7 +2142,7 @@ CREATE POLICY "Subida de fotos de productos" ON storage.objects FOR INSERT WITH 
                       className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold border border-amber-400/30 flex items-center justify-center gap-2 transition-all cursor-pointer text-xs"
                     >
                       <ClipboardCopy className="w-4 h-4" />
-                      Copiar Script SQL Listo (Crea tablas, fotos y tiempo real)
+                      Copiar Script SQL Completo (tablas, fotos, tiempo real y solicitudes)
                     </button>
                   </div>
                   <li className="pt-1">
