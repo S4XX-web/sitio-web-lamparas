@@ -6,6 +6,7 @@ import { useCart } from "../context/CartContext";
 export const Footer: React.FC = () => {
   const { setActiveDepartment, setIsQuotationOpen, products } = useCart();
   const solarCount = products.filter((product) => product.department === "solar").length;
+  const homeCount = products.filter((product) => product.department === "muebles").length;
 
   return (
     <footer className="border-t border-border bg-card text-card-foreground transition-colors duration-500 pb-20 md:pb-0">
@@ -125,7 +126,9 @@ export const Footer: React.FC = () => {
                   onClick={() => setActiveDepartment("muebles")}
                   className="hover:text-solar-ink transition-colors cursor-pointer text-left"
                 >
-                  Muebles & Terraza (Próximo Lanzamiento)
+                  {homeCount > 0
+                    ? `Muebles & Terraza (${homeCount} ${homeCount === 1 ? "Producto" : "Productos"})`
+                    : "Muebles & Terraza (Próximo Lanzamiento)"}
                 </button>
               </li>
               <li>

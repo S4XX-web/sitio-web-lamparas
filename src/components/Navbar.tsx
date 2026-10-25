@@ -18,6 +18,7 @@ export const Navbar: React.FC = () => {
   } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const solarCount = products.filter((product) => product.department === "solar").length;
+  const homeCount = products.filter((product) => product.department === "muebles").length;
 
   const handleNavigateDepartment = (dept: "general" | "solar" | "muebles" | "accesorios") => {
     setActiveDepartment(dept);
@@ -225,9 +226,15 @@ export const Navbar: React.FC = () => {
               }`}
             >
               <span>Muebles & Terraza</span>
-              <span className="rounded-full bg-amber-500/20 text-amber-500 px-2 py-0.5 text-[11px] font-bold">
-                Próximamente
-              </span>
+              {homeCount > 0 ? (
+                <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 text-[11px] font-bold">
+                  {homeCount} {homeCount === 1 ? "producto" : "productos"}
+                </span>
+              ) : (
+                <span className="rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 px-2 py-0.5 text-[11px] font-bold">
+                  Próximamente
+                </span>
+              )}
             </button>
 
             <button
