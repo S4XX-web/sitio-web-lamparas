@@ -44,9 +44,9 @@ interface CartContextType {
   syncLivePricesNow: () => Promise<void>;
   lastPriceSyncTime: Date | null;
   products: Product[];
-  updateProduct: (id: string, updates: Partial<Product>) => void;
-  addProduct: (product: Product) => void;
-  deleteProduct: (id: string) => void;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  addProduct: (product: Product) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
   resetProducts: () => void;
 }
 

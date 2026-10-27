@@ -1,149 +1,336 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import React, { useState, useEffect } from "react";
-import { useCart } from "../context/CartContext";
-import { Product, ProductDepartment } from "../types/store";
-import { saveCatalog } from "../services/productCatalogService";
-import {
-  getSellerSession,
-  signInSeller,
-  signOutSeller,
-  onSellerAuthChange,
-  isCloudAuthAvailable,
-  type SellerSession,
-} from "../services/sellerAuth";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { toast } from "sonner";
 import {
-  Lock,
-  Plus,
-  Trash2,
-  Edit,
-  Copy,
-  Save,
-  RotateCcw,
-  Download,
-  Upload,
-  ArrowLeft,
-  Search,
-  CheckCircle2,
-  XCircle,
-  Eye,
-  EyeOff,
-  Sparkles,
-  Sun,
-  Sofa,
-  Watch,
-  DollarSign,
-  Package,
-  Layers,
-  Image as ImageIcon,
-  Tag,
-  FileText,
   AlertTriangle,
-  Smartphone,
-  Share2,
-  ClipboardCopy,
-  RefreshCw,
-  Zap,
-  BatteryCharging,
-  Shield,
-  Database,
-  ExternalLink,
+  ArrowLeft,
+  Check,
+  ChevronDown,
   Cloud,
   CloudOff,
-  ClipboardList,
-  ChevronDown,
+  Copy,
+  Download,
+  Eye,
+  EyeOff,
+  FileText,
+  Image as ImageIcon,
+  Info,
+  Loader2,
+  Lock,
+  LogOut,
+  Minus,
+  Package,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  Send,
+  Settings,
+  ShieldCheck,
+  Trash2,
+  X,
 } from "lucide-react";
-import { isSolarProduct, getDepartmentLabel } from "../utils/productUtils";
+import { useCart } from "../context/CartContext";
+import type { CartItem, Product, ProductDepartment } from "../types/store";
+import { CatalogWriteError } from "../services/productCatalogService";
+import {
+  getSellerProfile,
+  getSellerSession,
+  isCloudAuthAvailable,
+  onSellerAuthChange,
+  signInSeller,
+  signOutSeller,
+  type SellerAccess,
+  type SellerSession,
+} from "../services/sellerAuth";
+import {
+  applyServerPrices,
+  listRequests,
+  registerRequest,
+  requestToCartItems,
+  toRequestItems,
+  type RegisteredRequest,
+  type RequestSummary,
+} from "../services/requestService";
+import { generateQuotationPDF } from "../utils/quotationPdf";
+import { getDepartmentLabel } from "../utils/productUtils";
 import {
   getSupabaseConfig,
-  saveSupabaseConfig,
-  clearSupabaseConfig,
   isSupabaseConfigured,
+  saveSupabaseConfig,
   uploadImageToSupabase,
 } from "../lib/supabase";
-import { fetchLiveCatalogFromSupabase } from "../services/productCatalogService";
-import { listRequests, type RequestSummary } from "../services/requestService";
-import schemaSql from "../../supabase-schema.sql?raw";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Panel Privado de Vendedor — Solar y Hogar" },
+      { title: "Panel de Vendedor — Solar y Hogar" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AdminPage,
 });
 
+/* ------------------------------------------------------------------ */
+/* Constantes y utilidades                                             */
+/* ------------------------------------------------------------------ */
+
+const STORE_WHATSAPP = "50769893055";
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+const BTN_PRIMARY =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
+const BTN_GHOST =
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
+const INPUT =
+  "h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/20";
+const LABEL = "mb-1.5 block text-xs font-semibold text-muted-foreground";
+
+type Tab = "productos" | "cotizaciones" | "ajustes";
+type DeptFilter = "todos" | ProductDepartment;
+
+interface PriceDraft {
+  price: string;
+  originalPrice: string;
+}
+
+interface ProductDraft extends Omit<Product, "price" | "originalPrice"> {
+  price: string;
+  originalPrice: string;
+}
+
+interface EditorState {
+  mode: "create" | "edit";
+  draft: ProductDraft;
+}
+
+function money(value: number): string {
+  return `$${value.toFixed(2)}`;
+}
+
+/** Acepta "12,50" y "12.50". Devuelve NaN si no hay número. */
+function parseMoney(value: string): number {
+  const clean = value.replace(/[^0-9.,]/g, "").replace(/,/g, ".");
+  if (!clean) return NaN;
+  return Number(clean);
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof CatalogWriteError) return err.message;
+  if (err instanceof Error) return err.message;
+  return "Ocurrió un error inesperado.";
+}
+
+function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString("es-PA", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length <= 8) return `507${digits}`;
+  return digits;
+}
+
+function buildQuoteMessage(input: {
+  code: string;
+  date: string;
+  clientName: string;
+  clientPhone: string;
+  sellerName: string;
+  items: CartItem[];
+  total: number;
+}): string {
+  const lines = input.items
+    .map(
+      (item) =>
+        `- ${item.quantity}x ${item.product.name} (Und: ${money(item.product.price)}) = ${money(
+          item.product.price * item.quantity,
+        )}`,
+    )
+    .join("\n");
+
+  return [
+    "*COTIZACIÓN — SOLAR Y HOGAR PANAMÁ*",
+    `*No.:* ${input.code}`,
+    `*Fecha:* ${input.date}`,
+    `*Cliente:* ${input.clientName}`,
+    input.clientPhone ? `*Teléfono:* ${input.clientPhone}` : null,
+    input.sellerName ? `*Atendido por:* ${input.sellerName}` : null,
+    "----------------------------------------",
+    lines,
+    "",
+    `*TOTAL:* ${money(input.total)} USD`,
+    "----------------------------------------",
+    "*Métodos de pago habilitados:*",
+    "- Yappy (Banco General)",
+    "- Transferencia Bancaria ACH (Banco General)",
+  ]
+    .filter((line): line is string => line !== null)
+    .join("\n");
+}
+
+function toDraft(product: Product): ProductDraft {
+  return {
+    ...product,
+    price: String(product.price),
+    originalPrice: String(product.originalPrice ?? product.price),
+  };
+}
+
+function emptyProduct(department: ProductDepartment): ProductDraft {
+  const category: Product["category"] =
+    department === "muebles" ? "muebles" : department === "accesorios" ? "accesorios" : "farolas";
+  return {
+    id: `prod-${Date.now().toString().slice(-6)}`,
+    name: "",
+    tagline: "",
+    department,
+    category,
+    price: "",
+    originalPrice: "",
+    rating: 5,
+    reviewsCount: 0,
+    image: "",
+    images: [],
+    badge: "",
+    inStock: true,
+    lumens: "",
+    batteryLife: "",
+    waterproof: "",
+    description: "",
+    features: [],
+    material: "",
+    dimensions: "",
+  };
+}
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImages(files: File[], folder: string): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of files) {
+    if (file.size > MAX_IMAGE_BYTES) continue;
+
+    if (isSupabaseConfigured()) {
+      const result = await uploadImageToSupabase(file, folder);
+      if (result.url) {
+        urls.push(result.url);
+        continue;
+      }
+    }
+    // Último recurso (modo local): imagen incrustada.
+    try {
+      urls.push(await fileToDataUrl(file));
+    } catch {
+      // se ignora el archivo
+    }
+  }
+  return urls;
+}
+
+/* ------------------------------------------------------------------ */
+/* Panel                                                               */
+/* ------------------------------------------------------------------ */
+
 function AdminPage() {
-  const navigate = useNavigate();
-  const { products, updateProduct, addProduct, deleteProduct, resetProducts } = useCart();
+  const { products, updateProduct, addProduct, deleteProduct } = useCart();
 
-  // Estado de autenticación (Supabase Auth: correo + contraseña)
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [emailInput, setEmailInput] = useState<string>("");
-  const [passwordInput, setPasswordInput] = useState<string>("");
-  const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [authError, setAuthError] = useState<string>("");
-  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
-  const [isAuthSubmitting, setIsAuthSubmitting] = useState<boolean>(false);
-  const [sellerEmail, setSellerEmail] = useState<string>("");
+  const [session, setSession] = useState<SellerSession | null>(null);
+  const [access, setAccess] = useState<SellerAccess | null>(null);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
-  // Filtros de búsqueda
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>("todos");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
-  // Modal de edición / creación de producto
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false);
+  const [tab, setTab] = useState<Tab>("productos");
 
-  // Modal para sincronizar entre dispositivos (móvil y PC)
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
-  const [syncCodeInput, setSyncCodeInput] = useState<string>("");
-  const [isCopiedCode, setIsCopiedCode] = useState<boolean>(false);
+  // Productos
+  const [search, setSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState<DeptFilter>("todos");
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, PriceDraft>>({});
+  const [savingPriceId, setSavingPriceId] = useState<string | null>(null);
+  const [busyProductId, setBusyProductId] = useState<string | null>(null);
+  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [isSavingEditor, setIsSavingEditor] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
-  // Modal y credenciales de Supabase Cloud
-  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
-  const [supabaseUrlInput, setSupabaseUrlInput] = useState<string>("");
-  const [supabaseKeyInput, setSupabaseKeyInput] = useState<string>("");
-  const [supabaseConnected, setSupabaseConnected] = useState<boolean>(isSupabaseConfigured());
-  const [isTestingSupabase, setIsTestingSupabase] = useState<boolean>(false);
-  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+  // Cotizaciones
+  const [requests, setRequests] = useState<RequestSummary[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsError, setRequestsError] = useState("");
+  const [isQuoteBuilderOpen, setIsQuoteBuilderOpen] = useState(false);
 
-  // Precios en edición rápida inline
-  const [inlinePrices, setInlinePrices] = useState<Record<string, { price: string; originalPrice: string }>>({});
+  /* ------------------------- sesión ------------------------- */
 
   useEffect(() => {
     let active = true;
-    let settled = false;
+    let requestId = 0;
+    let settledUserId: string | null = null;
+    let hasSettled = false;
 
-    const applySession = (session: SellerSession | null) => {
+    const applySession = async (next: SellerSession | null, force = false) => {
+      const nextUserId = next?.userId ?? null;
+
+      // Supabase avisa también al renovar el token: si es la misma cuenta no
+      // volvemos a verificar ni desmontamos el panel.
+      if (!force && hasSettled && nextUserId === settledUserId) return;
+
+      const myId = ++requestId;
       if (!active) return;
-      settled = true;
-      setIsAuthenticated(Boolean(session));
-      setSellerEmail(session?.email ?? "");
-      setIsAuthChecking(false);
+      setSession(next);
+
+      if (!next) {
+        settledUserId = null;
+        hasSettled = true;
+        setAccess(null);
+        setIsCheckingAccess(false);
+        return;
+      }
+
+      setIsCheckingAccess(true);
+      const profile = await getSellerProfile(next);
+      if (!active || myId !== requestId) return;
+      settledUserId = nextUserId;
+      hasSettled = true;
+      setAccess(profile);
+      setIsCheckingAccess(false);
     };
 
     getSellerSession()
-      .then(applySession)
+      .then((current) => void applySession(current))
       .catch(() => {
-        if (active) setIsAuthChecking(false);
+        if (active) setIsCheckingAccess(false);
       });
-    const unsubscribe = onSellerAuthChange(applySession);
 
-    // Red de seguridad: si la comprobación de sesión no responde (red lenta,
-    // Supabase inaccesible), mostramos el formulario en vez de quedarnos colgados.
+    const unsubscribe = onSellerAuthChange((next) => {
+      void applySession(next);
+    });
+
+    // Red de seguridad: nunca dejar la pantalla en "verificando".
     const timeout = window.setTimeout(() => {
-      if (active && !settled) setIsAuthChecking(false);
-    }, 3000);
-
-    const cfg = getSupabaseConfig();
-    if (cfg) {
-      setSupabaseUrlInput(cfg.url);
-      setSupabaseKeyInput(cfg.anonKey);
-      setSupabaseConnected(true);
-    }
+      if (active) setIsCheckingAccess(false);
+    }, 6000);
 
     return () => {
       active = false;
@@ -152,26 +339,51 @@ function AdminPage() {
     };
   }, []);
 
-  // Actualizar inline prices cuando cambian los productos
-  useEffect(() => {
-    const map: Record<string, { price: string; originalPrice: string }> = {};
-    products.forEach((p) => {
-      map[p.id] = {
-        price: p.price.toString(),
-        originalPrice: p.originalPrice ? p.originalPrice.toString() : p.price.toString(),
-      };
-    });
-    setInlinePrices(map);
-  }, [products]);
+  const handleLogin = async (event: FormEvent) => {
+    event.preventDefault();
+    if (isSigningIn) return;
 
-  // Solicitudes (cotizaciones y pedidos) registradas en el servidor
-  const [requests, setRequests] = useState<RequestSummary[]>([]);
-  const [requestsLoading, setRequestsLoading] = useState<boolean>(false);
-  const [requestsError, setRequestsError] = useState<string>("");
-  const [isRequestsOpen, setIsRequestsOpen] = useState<boolean>(true);
+    setAuthError("");
+    setIsSigningIn(true);
+    const result = await signInSeller(email, password);
+    setIsSigningIn(false);
 
-  const loadRequests = React.useCallback(async () => {
-    if (!isAuthenticated || !supabaseConnected) return;
+    if (!result.session) {
+      setAuthError(result.error ?? "No se pudo iniciar sesión.");
+      return;
+    }
+
+    setPassword("");
+    setSession(result.session);
+    setIsCheckingAccess(true);
+    const profile = await getSellerProfile(result.session);
+    setAccess(profile);
+    setIsCheckingAccess(false);
+
+    if (profile.status === "seller") {
+      toast.success("Bienvenido al panel");
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOutSeller();
+    setSession(null);
+    setAccess(null);
+    setPassword("");
+    toast.info("Sesión cerrada");
+  };
+
+  const retryAccess = async () => {
+    if (!session) return;
+    setIsCheckingAccess(true);
+    const profile = await getSellerProfile(session);
+    setAccess(profile);
+    setIsCheckingAccess(false);
+  };
+
+  /* ----------------------- solicitudes ---------------------- */
+
+  const loadRequests = useCallback(async () => {
     setRequestsLoading(true);
     setRequestsError("");
     try {
@@ -179,2010 +391,1975 @@ function AdminPage() {
       if (list === null) {
         setRequests([]);
         setRequestsError(
-          "Ejecuta la sección 9 de supabase-schema.sql para activar el registro de solicitudes.",
+          "El registro de solicitudes todavía no está activo en Supabase. Ejecuta la sección 9 de supabase-schema.sql.",
         );
       } else {
         setRequests(list);
       }
     } catch (err) {
-      console.error(err);
-      setRequestsError(
-        err instanceof Error ? err.message : "No se pudieron cargar las solicitudes.",
-      );
+      setRequestsError(errorMessage(err));
     } finally {
       setRequestsLoading(false);
     }
-  }, [isAuthenticated, supabaseConnected]);
+  }, []);
 
   useEffect(() => {
-    if (isAuthenticated && supabaseConnected) void loadRequests();
-  }, [isAuthenticated, supabaseConnected, loadRequests]);
+    if (access?.status === "seller") void loadRequests();
+  }, [access?.status, loadRequests]);
 
-  // Manejar inicio de sesión con Supabase Auth
-  const handleLogin = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (isAuthSubmitting) return;
+  /* ------------------------ productos ----------------------- */
 
-    setAuthError("");
-    setIsAuthSubmitting(true);
+  const filteredProducts = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return products.filter((product) => {
+      if (deptFilter !== "todos" && product.department !== deptFilter) return false;
+      if (!term) return true;
+      return (
+        product.name.toLowerCase().includes(term) ||
+        product.id.toLowerCase().includes(term) ||
+        (product.badge ?? "").toLowerCase().includes(term)
+      );
+    });
+  }, [products, search, deptFilter]);
 
-    const res = await signInSeller(emailInput, passwordInput);
-    setIsAuthSubmitting(false);
+  const isPriceDirty = (product: Product): boolean => {
+    const draft = priceDrafts[product.id];
+    if (!draft) return false;
+    const price = parseMoney(draft.price);
+    const original = parseMoney(draft.originalPrice);
+    const currentOriginal = product.originalPrice ?? product.price;
+    return price !== product.price || (Number.isFinite(original) ? original : price) !== currentOriginal;
+  };
 
-    if (res.session) {
-      setIsAuthenticated(true);
-      setSellerEmail(res.session.email ?? emailInput.trim());
-      setPasswordInput("");
-      toast.success("¡Bienvenido al Panel de Vendedor!", {
-        description: "Acceso concedido a la gestión de productos y precios.",
-      });
-    } else {
-      setAuthError(res.error || "No se pudo iniciar sesión.");
-      toast.error("Acceso denegado", {
-        description: res.error || "Verifica tus credenciales de vendedor.",
-      });
+  const updateDraft = (product: Product, field: keyof PriceDraft, value: string) => {
+    setPriceDrafts((prev) => {
+      const base =
+        prev[product.id] ?? {
+          price: String(product.price),
+          originalPrice: String(product.originalPrice ?? product.price),
+        };
+      return { ...prev, [product.id]: { ...base, [field]: value } };
+    });
+  };
+
+  const clearDraft = (id: string) => {
+    setPriceDrafts((prev) => {
+      if (!(id in prev)) return prev;
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  };
+
+  const savePrice = async (product: Product) => {
+    const draft = priceDrafts[product.id];
+    if (!draft) return;
+
+    const price = parseMoney(draft.price);
+    if (!Number.isFinite(price) || price <= 0) {
+      toast.error("Precio inválido", { description: "Escribe un número mayor que 0." });
+      return;
+    }
+
+    const originalRaw = parseMoney(draft.originalPrice);
+    const originalPrice = Number.isFinite(originalRaw) && originalRaw >= price ? originalRaw : price;
+
+    setSavingPriceId(product.id);
+    try {
+      await updateProduct(product.id, { price, originalPrice });
+      clearDraft(product.id);
+      toast.success("Precio actualizado", { description: `${product.name} · ${money(price)}` });
+    } catch (err) {
+      toast.error("No se pudo guardar el precio", { description: errorMessage(err) });
+    } finally {
+      setSavingPriceId(null);
     }
   };
 
-  const handleLogout = async () => {
-    await signOutSeller();
-    setIsAuthenticated(false);
-    setSellerEmail("");
-    toast.info("Sesión cerrada");
+  const toggleStock = async (product: Product) => {
+    setBusyProductId(product.id);
+    try {
+      await updateProduct(product.id, { inStock: !product.inStock });
+      toast.info(product.inStock ? "Marcado como agotado" : "Marcado como disponible", {
+        description: product.name,
+      });
+    } catch (err) {
+      toast.error("No se pudo cambiar el stock", { description: errorMessage(err) });
+    } finally {
+      setBusyProductId(null);
+    }
   };
 
-  // Guardar credenciales de Supabase desde la pantalla de acceso
-  const handleSaveSupabaseFromLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanUrl = supabaseUrlInput.trim().replace(/\/+$/, "");
-    const cleanKey = supabaseKeyInput.trim();
+  const removeProduct = async (product: Product) => {
+    const confirmed = window.confirm(`¿Eliminar "${product.name}" del catálogo?`);
+    if (!confirmed) return;
+
+    setBusyProductId(product.id);
+    try {
+      await deleteProduct(product.id);
+      clearDraft(product.id);
+      toast.success("Producto eliminado", { description: product.name });
+    } catch (err) {
+      toast.error("No se pudo eliminar el producto", { description: errorMessage(err) });
+    } finally {
+      setBusyProductId(null);
+    }
+  };
+
+  const openCreateProduct = () => {
+    const department: ProductDepartment =
+      deptFilter === "muebles" ? "muebles" : deptFilter === "accesorios" ? "accesorios" : "solar";
+    setEditor({ mode: "create", draft: emptyProduct(department) });
+  };
+
+  const saveEditor = async () => {
+    if (!editor) return;
+    const { draft, mode } = editor;
+
+    if (!draft.name.trim()) {
+      toast.error("Falta el nombre del producto");
+      return;
+    }
+
+    const price = parseMoney(draft.price);
+    if (!Number.isFinite(price) || price <= 0) {
+      toast.error("Precio inválido", { description: "Escribe un número mayor que 0." });
+      return;
+    }
+
+    const originalRaw = parseMoney(draft.originalPrice);
+    const originalPrice = Number.isFinite(originalRaw) && originalRaw >= price ? originalRaw : price;
+
+    const payload: Product = {
+      ...draft,
+      name: draft.name.trim(),
+      tagline: draft.tagline.trim(),
+      price,
+      originalPrice,
+      features: draft.features.map((f) => f.trim()).filter(Boolean),
+    };
+
+    setIsSavingEditor(true);
+    try {
+      if (mode === "create") {
+        await addProduct(payload);
+        toast.success("Producto creado", { description: payload.name });
+      } else {
+        await updateProduct(payload.id, payload);
+        clearDraft(payload.id);
+        toast.success("Producto actualizado", { description: payload.name });
+      }
+      setEditor(null);
+    } catch (err) {
+      toast.error("No se pudo guardar el producto", { description: errorMessage(err) });
+    } finally {
+      setIsSavingEditor(false);
+    }
+  };
+
+  const handleImageUpload = async (files: File[]) => {
+    if (!editor || files.length === 0) return;
+
+    const valid = files.filter((file) => file.size <= MAX_IMAGE_BYTES);
+    if (valid.length === 0) {
+      toast.error("Las fotos deben pesar menos de 10 MB");
+      return;
+    }
+
+    setIsUploadingImages(true);
+    try {
+      const urls = await uploadImages(valid, editor.draft.id || "producto");
+      if (urls.length === 0) {
+        toast.error("No se pudieron subir las fotos");
+        return;
+      }
+      setEditor((prev) => {
+        if (!prev) return prev;
+        const gallery = prev.draft.images?.length
+          ? prev.draft.images
+          : prev.draft.image
+            ? [prev.draft.image]
+            : [];
+        const nextGallery = [...gallery, ...urls];
+        return {
+          ...prev,
+          draft: {
+            ...prev.draft,
+            image: prev.draft.image || urls[0] || "",
+            images: nextGallery,
+          },
+        };
+      });
+      toast.success(`${urls.length} foto(s) agregada(s)`);
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const downloadCatalog = () => {
+    const data = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(products, null, 2))}`;
+    const link = document.createElement("a");
+    link.href = data;
+    link.download = `catalogo-solar-y-hogar-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    toast.success("Copia del catálogo descargada");
+  };
+
+  /* --------------------------- render ----------------------- */
+
+  if (isCheckingAccess) {
+    return (
+      <Shell>
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+          <p className="text-sm">Verificando acceso…</p>
+        </div>
+      </Shell>
+    );
+  }
+
+  if (!session) {
+    return (
+      <LoginScreen
+        email={email}
+        password={password}
+        showPassword={showPassword}
+        isSigningIn={isSigningIn}
+        error={authError}
+        onEmailChange={setEmail}
+        onPasswordChange={setPassword}
+        onTogglePassword={() => setShowPassword((prev) => !prev)}
+        onSubmit={handleLogin}
+      />
+    );
+  }
+
+  if (access?.status === "not_seller") {
+    return (
+      <Shell>
+        <StatusCard
+          icon={<ShieldCheck className="h-6 w-6" aria-hidden="true" />}
+          tone="warning"
+          title="Esta cuenta no es de vendedor"
+          description="Tu correo inició sesión, pero no tiene permiso para cambiar precios ni ver cotizaciones. Pide al administrador que agregue tu usuario a la tabla de vendedores de Supabase."
+          actions={
+            <button type="button" className={BTN_GHOST} onClick={handleLogout}>
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Cerrar sesión
+            </button>
+          }
+        />
+      </Shell>
+    );
+  }
+
+  if (!access || access.status === "unavailable") {
+    return (
+      <Shell>
+        <StatusCard
+          icon={<AlertTriangle className="h-6 w-6" aria-hidden="true" />}
+          tone="danger"
+          title="No pudimos verificar tu cuenta"
+          description={
+            access?.status === "unavailable"
+              ? access.message
+              : "Revisa tu conexión e inténtalo de nuevo."
+          }
+          actions={
+            <>
+              <button type="button" className={BTN_PRIMARY} onClick={() => void retryAccess()}>
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Reintentar
+              </button>
+              <button type="button" className={BTN_GHOST} onClick={handleLogout}>
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                Cerrar sesión
+              </button>
+            </>
+          }
+        />
+      </Shell>
+    );
+  }
+
+  const sellerEmail = access.email ?? session.email ?? "";
+  const productCount = products.length;
+  const requestCount = requests.length;
+
+  return (
+    <Shell>
+      <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-solar/25 text-solar-ink">
+            <Package className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold leading-tight">Panel de vendedor</h1>
+            <p className="truncate text-xs text-muted-foreground">{sellerEmail}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="hidden items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary sm:inline-flex">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            Vendedor verificado
+          </span>
+          <Link
+            to="/"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold transition-colors hover:bg-muted"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Tienda
+          </Link>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold transition-colors hover:bg-muted"
+          >
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Salir</span>
+          </button>
+        </div>
+      </header>
+
+      <nav
+        aria-label="Secciones del panel"
+        className="mb-5 grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card p-1"
+      >
+        {(
+          [
+            { id: "productos" as Tab, label: "Productos", count: productCount, icon: Package },
+            { id: "cotizaciones" as Tab, label: "Cotizaciones", count: requestCount, icon: FileText },
+            { id: "ajustes" as Tab, label: "Ajustes", count: null, icon: Settings },
+          ] satisfies { id: Tab; label: string; count: number | null; icon: typeof Package }[]
+        ).map((item) => {
+          const Icon = item.icon;
+          const active = tab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTab(item.id)}
+              aria-current={active ? "page" : undefined}
+              className={`flex h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-semibold transition-colors ${
+                active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              <span>{item.label}</span>
+              {item.count !== null && (
+                <span
+                  className={`rounded-full px-1.5 text-[11px] font-bold ${
+                    active ? "bg-primary-foreground/20" : "bg-muted-foreground/15"
+                  }`}
+                >
+                  {item.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {tab === "productos" && (
+        <section aria-label="Productos">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar producto…"
+                aria-label="Buscar producto"
+                className={`${INPUT} pl-9`}
+              />
+            </div>
+            <button type="button" className={BTN_PRIMARY} onClick={openCreateProduct}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nuevo producto
+            </button>
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {(["todos", "solar", "muebles", "accesorios"] as DeptFilter[]).map((dept) => (
+              <button
+                key={dept}
+                type="button"
+                onClick={() => setDeptFilter(dept)}
+                aria-pressed={deptFilter === dept}
+                className={`h-11 rounded-full px-3.5 text-xs font-semibold transition-colors ${
+                  deptFilter === dept
+                    ? "bg-foreground text-background"
+                    : "border border-border bg-card text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {dept === "todos" ? "Todos" : getDepartmentLabel(dept)}
+              </button>
+            ))}
+          </div>
+
+          {filteredProducts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center">
+              <Package className="mx-auto mb-2 h-6 w-6 text-muted-foreground" aria-hidden="true" />
+              <p className="text-sm font-semibold">No hay productos que coincidan</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cambia el filtro o crea un producto nuevo.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {filteredProducts.map((product) => {
+                const draft = priceDrafts[product.id];
+                const dirty = isPriceDirty(product);
+                const isSaving = savingPriceId === product.id;
+                const isBusy = busyProductId === product.id;
+
+                return (
+                  <article
+                    key={product.id}
+                    className="rounded-2xl border border-border bg-card p-3 sm:p-4"
+                  >
+                    <div className="flex gap-3">
+                      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-muted-foreground">
+                            <ImageIcon className="h-5 w-5" aria-hidden="true" />
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h2 className="line-clamp-2 text-sm font-semibold leading-snug">
+                              {product.name}
+                            </h2>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {getDepartmentLabel(product.department)} · {product.id}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void toggleStock(product)}
+                            disabled={isBusy}
+                            aria-pressed={product.inStock}
+                            className={`shrink-0 rounded-full px-2.5 text-[11px] font-bold transition-colors ${
+                              product.inStock
+                                ? "h-9 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:hover:bg-emerald-500/30"
+                                : "h-9 bg-muted text-muted-foreground hover:bg-muted/70"
+                            }`}
+                          >
+                            {isBusy ? "…" : product.inStock ? "Disponible" : "Agotado"}
+                          </button>
+                        </div>
+
+                        <div className="mt-2.5 flex flex-wrap items-end gap-2">
+                          <div className="w-[calc(50%-0.25rem)] sm:w-28">
+                            <label className={LABEL} htmlFor={`price-${product.id}`}>
+                              Precio (USD)
+                            </label>
+                            <input
+                              id={`price-${product.id}`}
+                              type="text"
+                              inputMode="decimal"
+                              value={draft?.price ?? String(product.price)}
+                              onChange={(event) => updateDraft(product, "price", event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") void savePrice(product);
+                              }}
+                              className={`${INPUT} h-10 font-semibold`}
+                            />
+                          </div>
+                          <div className="w-[calc(50%-0.25rem)] sm:w-28">
+                            <label className={LABEL} htmlFor={`original-${product.id}`}>
+                              Antes
+                            </label>
+                            <input
+                              id={`original-${product.id}`}
+                              type="text"
+                              inputMode="decimal"
+                              value={draft?.originalPrice ?? String(product.originalPrice ?? product.price)}
+                              onChange={(event) =>
+                                updateDraft(product, "originalPrice", event.target.value)
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") void savePrice(product);
+                              }}
+                              className={`${INPUT} h-10 text-muted-foreground`}
+                            />
+                          </div>
+
+                          <div className="flex w-full items-center gap-2 sm:w-auto">
+                            <button
+                              type="button"
+                              onClick={() => void savePrice(product)}
+                              disabled={!dirty || isSaving}
+                              className={`${dirty ? BTN_PRIMARY : BTN_GHOST} h-10 flex-1 px-3 sm:flex-none`}
+                            >
+                              {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                              ) : (
+                                <Save className="h-4 w-4" aria-hidden="true" />
+                              )}
+                              Guardar
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setEditor({ mode: "edit", draft: toDraft(product) })}
+                              aria-label={`Editar ${product.name}`}
+                              className={`${BTN_GHOST} h-10 flex-1 px-3 sm:flex-none`}
+                            >
+                              <Pencil className="h-4 w-4" aria-hidden="true" />
+                              <span className="sm:hidden">Editar</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => void removeProduct(product)}
+                              disabled={isBusy}
+                              aria-label={`Eliminar ${product.name}`}
+                              className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-card px-3 text-muted-foreground transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:hover:border-red-500/40 dark:hover:bg-red-500/10 dark:hover:text-red-300 disabled:opacity-50"
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {dirty && (
+                          <p className="mt-2 text-[11px] font-medium text-solar-ink">
+                            Cambios sin guardar
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {tab === "cotizaciones" && (
+        <RequestsPanel
+          requests={requests}
+          loading={requestsLoading}
+          error={requestsError}
+          onRefresh={() => void loadRequests()}
+          onNewQuote={() => setIsQuoteBuilderOpen(true)}
+        />
+      )}
+
+      {tab === "ajustes" && (
+        <SettingsPanel
+          sellerEmail={sellerEmail}
+          productCount={productCount}
+          onLogout={() => void handleLogout()}
+          onDownloadCatalog={downloadCatalog}
+        />
+      )}
+
+      {editor && (
+        <ProductEditorModal
+          state={editor}
+          saving={isSavingEditor}
+          uploading={isUploadingImages}
+          onChange={(draft) => setEditor({ ...editor, draft })}
+          onClose={() => setEditor(null)}
+          onSubmit={() => void saveEditor()}
+          onUploadImages={(files) => void handleImageUpload(files)}
+        />
+      )}
+
+      {isQuoteBuilderOpen && (
+        <QuoteBuilderModal
+          products={products}
+          onClose={() => setIsQuoteBuilderOpen(false)}
+          onRegistered={() => {
+            void loadRequests();
+            setTab("cotizaciones");
+          }}
+        />
+      )}
+    </Shell>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Estructura                                                          */
+/* ------------------------------------------------------------------ */
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto w-full max-w-5xl px-3 py-5 sm:px-6 sm:py-8">{children}</div>
+    </div>
+  );
+}
+
+function StatusCard({
+  icon,
+  title,
+  description,
+  actions,
+  tone,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  actions: React.ReactNode;
+  tone: "warning" | "danger";
+}) {
+  const toneClass =
+    tone === "warning" ? "bg-solar/20 text-solar-ink" : "bg-red-100 text-red-700";
+
+  return (
+    <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-6 text-center">
+      <span className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl ${toneClass}`}>
+        {icon}
+      </span>
+      <h1 className="text-lg font-bold">{title}</h1>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">{actions}</div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Login                                                               */
+/* ------------------------------------------------------------------ */
+
+function LoginScreen({
+  email,
+  password,
+  showPassword,
+  isSigningIn,
+  error,
+  onEmailChange,
+  onPasswordChange,
+  onTogglePassword,
+  onSubmit,
+}: {
+  email: string;
+  password: string;
+  showPassword: boolean;
+  isSigningIn: boolean;
+  error: string;
+  onEmailChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+  onTogglePassword: () => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const cloudReady = isSupabaseConfigured();
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 text-center">
+          <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-solar/25 text-solar-ink">
+            <Lock className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <h1 className="text-xl font-bold">Panel de vendedor</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Solar y Hogar Panamá</p>
+        </div>
+
+        <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div>
+            <label className={LABEL} htmlFor="admin-email">
+              Correo
+            </label>
+            <input
+              id="admin-email"
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(event) => onEmailChange(event.target.value)}
+              placeholder="vendedor@correo.com"
+              className={INPUT}
+            />
+          </div>
+
+          <div>
+            <label className={LABEL} htmlFor="admin-password">
+              Contraseña
+            </label>
+            <div className="relative">
+              <input
+                id="admin-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(event) => onPasswordChange(event.target.value)}
+                placeholder="••••••••"
+                className={`${INPUT} pr-11`}
+              />
+              <button
+                type="button"
+                onClick={onTogglePassword}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-r-xl text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <p
+              role="alert"
+              className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+            >
+              {error}
+            </p>
+          )}
+
+          <button type="submit" disabled={isSigningIn} className={`${BTN_PRIMARY} w-full`}>
+            {isSigningIn ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Lock className="h-4 w-4" aria-hidden="true" />
+            )}
+            Entrar
+          </button>
+
+          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+            Solo las cuentas autorizadas pueden cambiar precios y generar cotizaciones.
+          </p>
+        </form>
+
+        {!cloudReady && (
+          <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-solar-ink">
+              <CloudOff className="h-3.5 w-3.5" aria-hidden="true" />
+              La nube no está configurada
+            </p>
+            <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground">
+              Conecta Supabase para poder iniciar sesión y guardar los cambios.
+            </p>
+            <CloudConfigForm />
+          </div>
+        )}
+
+        <div className="mt-6 text-center">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            Volver a la tienda
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Conexión con Supabase                                               */
+/* ------------------------------------------------------------------ */
+
+function CloudConfigForm() {
+  const config = getSupabaseConfig();
+  const [url, setUrl] = useState(config?.url ?? "");
+  const [key, setKey] = useState(config?.anonKey ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const cleanUrl = url.trim().replace(/\/+$/, "");
+    const cleanKey = key.trim();
 
     if (!cleanUrl || !cleanKey) {
       toast.error("Completa la URL y la clave pública de Supabase");
       return;
     }
 
+    setSaving(true);
     saveSupabaseConfig(cleanUrl, cleanKey);
-    toast.success("Conexión guardada", {
-      description: "Ahora inicia sesión con tu cuenta de vendedor.",
-    });
-    setTimeout(() => window.location.reload(), 600);
+    toast.success("Conexión guardada", { description: "Recargando el panel…" });
+    window.setTimeout(() => window.location.reload(), 600);
   };
 
-  // Guardado rápido de precio inline
-  const handleQuickSavePrice = (productId: string) => {
-    const current = inlinePrices[productId];
-    if (!current) return;
-
-    const p = parseFloat(current.price.replace(",", "."));
-    const orig = parseFloat(current.originalPrice.replace(",", "."));
-
-    if (isNaN(p) || p <= 0) {
-      toast.error("Precio inválido", { description: "Ingresa un número mayor a 0." });
-      return;
-    }
-
-    updateProduct(productId, {
-      price: p,
-      originalPrice: !isNaN(orig) && orig >= p ? orig : p,
-    });
-
-    toast.success("Precio actualizado", {
-      description: `El precio ahora es $${p.toFixed(2)} USD`,
-    });
-  };
-
-  // Toggle Stock directo
-  const handleToggleStock = (product: Product) => {
-    const nextStock = !product.inStock;
-    updateProduct(product.id, { inStock: nextStock });
-    toast.info(nextStock ? "Producto marcado en stock" : "Producto marcado como agotado", {
-      description: product.name,
-    });
-  };
-
-  // Duplicar producto
-  const handleDuplicateProduct = (product: Product) => {
-    const copy: Product = {
-      ...product,
-      id: `${product.id}-copia-${Math.floor(Math.random() * 1000)}`,
-      name: `${product.name} (Copia)`,
-      badge: "Nuevo",
-    };
-    addProduct(copy);
-    toast.success("Producto duplicado", {
-      description: `Se creó una copia de ${product.name}. Puedes editarla ahora.`,
-    });
-  };
-
-  // Eliminar producto
-  const handleDeleteProduct = (product: Product) => {
-    if (window.confirm(`¿Estás seguro de eliminar "${product.name}" del catálogo?`)) {
-      deleteProduct(product.id);
-      toast.warning("Producto eliminado", { description: product.name });
-    }
-  };
-
-  // Abrir modal para crear nuevo
-  const handleStartCreateNew = () => {
-    const isSolarDept = selectedDeptFilter === "solar" || selectedDeptFilter === "todos";
-    const dept: ProductDepartment = selectedDeptFilter === "muebles" ? "muebles" : selectedDeptFilter === "accesorios" ? "accesorios" : "solar";
-    const cat = dept === "muebles" ? "muebles" : dept === "accesorios" ? "accesorios" : "farolas";
-
-    const newTemplate: Product = {
-      id: `prod-${Date.now().toString().slice(-6)}`,
-      name: "",
-      tagline: "",
-      department: dept,
-      category: cat,
-      price: 50.0,
-      originalPrice: 50.0,
-      rating: 5.0,
-      reviewsCount: 1,
-      image: "",
-      images: [],
-      badge: "Nuevo",
-      inStock: true,
-      lumens: dept === "solar" ? "Alta Potencia" : "",
-      batteryLife: dept === "solar" ? "10-12 Horas" : "",
-      waterproof: dept === "solar" ? "IP66" : "",
-      material: "",
-      dimensions: "",
-      description: "Descripción detallada del producto...",
-      features: ["Característica principal 1", "Característica principal 2"],
-    };
-    setEditingProduct(newTemplate);
-    setIsCreatingNew(true);
-  };
-
-  // Guardar modal completo de producto
-  const handleSaveModalProduct = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProduct) return;
-
-    if (!editingProduct.name.trim()) {
-      toast.error("El nombre del producto es obligatorio");
-      return;
-    }
-
-    if (isCreatingNew) {
-      addProduct(editingProduct);
-      toast.success("¡Producto creado con éxito!", {
-        description: `${editingProduct.name} ya está disponible en la tienda.`,
-      });
-    } else {
-      updateProduct(editingProduct.id, editingProduct);
-      toast.success("Producto guardado", {
-        description: `Los cambios en ${editingProduct.name} han sido aplicados.`,
-      });
-    }
-
-    setEditingProduct(null);
-    setIsCreatingNew(false);
-  };
-
-  // Copiar código de sincronización para transferir de móvil a PC o viceversa
-  const handleCopySyncCode = () => {
-    try {
-      const code = btoa(unescape(encodeURIComponent(JSON.stringify(products))));
-      navigator.clipboard.writeText(code);
-      setIsCopiedCode(true);
-      toast.success("Código de sincronización copiado", {
-        description: "Pégalo en el panel /admin de tu computador para transferir el catálogo.",
-      });
-      setTimeout(() => setIsCopiedCode(false), 3000);
-    } catch {
-      navigator.clipboard.writeText(JSON.stringify(products));
-      toast.success("Catálogo copiado en texto JSON");
-    }
-  };
-
-  // Enviar respaldo a WhatsApp para abrir en la computadora
-  const handleShareToWhatsApp = () => {
-    const jsonStr = JSON.stringify(products);
-    let code = "";
-    try {
-      code = btoa(unescape(encodeURIComponent(jsonStr)));
-    } catch {
-      code = jsonStr;
-    }
-
-    const message = `*CATALOGO SOLAR Y HOGAR - SINCRONIZACION MULTI-DISPOSITIVO*
-Hola! Aquí tienes el código para transferir los productos a tu computadora:
-
-${code}
-
-Instrucciones:
-1. Abre tu web en la computadora en la ruta /admin
-2. Haz clic en "Sincronizar Dispositivos"
-3. Pega este código y haz clic en "Aplicar y Sincronizar"`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
-  };
-
-  // Aplicar código de sincronización pegado desde otro dispositivo
-  const handleApplySyncCode = () => {
-    if (!syncCodeInput.trim()) {
-      toast.error("Pega un código de sincronización primero");
-      return;
-    }
-
-    try {
-      let rawJson = syncCodeInput.trim();
-      // Si está en base64
-      if (!rawJson.startsWith("[") && !rawJson.startsWith("{")) {
-        try {
-          rawJson = decodeURIComponent(escape(atob(rawJson)));
-        } catch {
-          // Si no es base64, continuar
-        }
-      }
-
-      const parsed = JSON.parse(rawJson);
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
-        saveCatalog(parsed);
-        toast.success("¡Catálogo sincronizado con éxito!", {
-          description: `Se han restaurado ${parsed.length} productos en este dispositivo.`,
-        });
-        setIsSyncModalOpen(false);
-        setSyncCodeInput("");
-        setTimeout(() => window.location.reload(), 500);
-      } else {
-        toast.error("El código no contiene un catálogo válido de productos");
-      }
-    } catch (err) {
-      toast.error("Código no válido", {
-        description: "Asegúrate de copiar el código completo generado en el otro dispositivo.",
-      });
-    }
-  };
-
-  // Exportar catálogo JSON
-  const handleExportJson = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products, null, 2));
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `catalogo_solara_backup_${new Date().toISOString().slice(0, 10)}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    toast.success("Copia de seguridad descargada en JSON");
-  };
-
-  // Importar catálogo JSON
-  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const content = event.target?.result as string;
-        const parsed = JSON.parse(content);
-        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id && parsed[0].name) {
-          saveCatalog(parsed);
-          window.location.reload();
-          toast.success("Catálogo importado y restaurado con éxito");
-        } else {
-          toast.error("El archivo JSON no tiene un formato válido de productos");
-        }
-      } catch (err) {
-        toast.error("Error al leer el archivo JSON", { description: String(err) });
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // Restablecer catálogo original
-  const handleResetCatalog = () => {
-    if (
-      window.confirm(
-        "¿Deseas restablecer el catálogo a los productos de fábrica originales? Se perderán las modificaciones no respaldadas."
-      )
-    ) {
-      resetProducts();
-      toast.info("Catálogo restablecido a valores iniciales");
-    }
-  };
-
-  // Subir una o múltiples fotos a la galería (Nube o local)
-  const handleMultipleImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length || !editingProduct) return;
-
-    const oversized = files.filter((f) => f.size > 10 * 1024 * 1024);
-    if (oversized.length > 0) {
-      toast.warning(`${oversized.length} imagen(es) superan 10MB. Te recomendamos comprimirlas.`);
-    }
-
-    const validFiles = files.filter((f) => f.size <= 10 * 1024 * 1024);
-    if (!validFiles.length) return;
-
-    setIsUploadingImage(true);
-    const toastId = toast.loading(`Subiendo ${validFiles.length} imagen(es)...`);
-
-    try {
-      const uploadedUrls: string[] = [];
-
-      for (let i = 0; i < validFiles.length; i++) {
-        const file = validFiles[i];
-        let fileUrl = "";
-
-        // 1. Si Supabase está conectado, subimos a la nube
-        if (isSupabaseConfigured()) {
-          const uploadRes = await uploadImageToSupabase(file, editingProduct.id || "producto");
-          if (uploadRes && uploadRes.url) {
-            fileUrl = uploadRes.url;
-          } else if (uploadRes?.error) {
-            console.warn("Fallo subiendo archivo a Supabase:", uploadRes.error);
-          }
-        }
-
-        // 2. Si no hay Supabase o falló la subida remota, convertimos a Base64 local
-        if (!fileUrl) {
-          fileUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-        }
-
-        uploadedUrls.push(fileUrl);
-      }
-
-      setEditingProduct((prev) => {
-        if (!prev) return null;
-        const currentGallery =
-          prev.images && prev.images.length > 0
-            ? prev.images
-            : prev.image && prev.image.trim()
-            ? [prev.image]
-            : [];
-
-        const nextGallery = [...currentGallery, ...uploadedUrls];
-        const nextCover = prev.image && prev.image.trim() ? prev.image : uploadedUrls[0] || "";
-
-        return {
-          ...prev,
-          image: nextCover,
-          images: nextGallery,
-        };
-      });
-
-      toast.success(`¡${uploadedUrls.length} foto(s) agregada(s) con éxito!`, { id: toastId });
-    } catch (err: any) {
-      console.error(err);
-      toast.error("Error al subir las imágenes", { id: toastId, description: err?.message });
-    } finally {
-      setIsUploadingImage(false);
-      if (e.target) e.target.value = "";
-    }
-  };
-
-  // Establecer una foto existente como portada principal
-  const handleSetCoverImage = (imgUrl: string) => {
-    if (!editingProduct) return;
-    setEditingProduct({
-      ...editingProduct,
-      image: imgUrl,
-    });
-    toast.info("Foto asignada como portada");
-  };
-
-  // Eliminar una foto de la galería
-  const handleRemoveGalleryImage = (indexToRemove: number) => {
-    if (!editingProduct) return;
-    const currentImages = editingProduct.images?.length
-      ? editingProduct.images
-      : editingProduct.image
-      ? [editingProduct.image]
-      : [];
-
-    const removedUrl = currentImages[indexToRemove];
-    const updatedImages = currentImages.filter((_, idx) => idx !== indexToRemove);
-
-    let nextCover = editingProduct.image;
-    if (removedUrl === editingProduct.image) {
-      nextCover = updatedImages[0] || "";
-    }
-
-    setEditingProduct({
-      ...editingProduct,
-      image: nextCover,
-      images: updatedImages,
-    });
-    toast.warning("Foto eliminada de la galería");
-  };
-
-  // Guardar y probar conexión con Supabase
-  const handleSaveSupabase = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const cleanUrl = supabaseUrlInput.trim().replace(/\/+$/, "");
-    const cleanKey = supabaseKeyInput.trim();
-
-    if (!cleanUrl || !cleanKey) {
-      toast.error("Ingresa la URL del proyecto y la anon key de Supabase");
-      return;
-    }
-
-    setIsTestingSupabase(true);
-    const toastId = toast.loading("Verificando conexión con Supabase...");
-
-    try {
-      saveSupabaseConfig(cleanUrl, cleanKey);
-      const liveCatalog = await fetchLiveCatalogFromSupabase();
-
-      if (liveCatalog && liveCatalog.length > 0) {
-        saveCatalog(liveCatalog);
-        setSupabaseConnected(true);
-        toast.success(`¡Conectado exitosamente! Se sincronizaron ${liveCatalog.length} productos en tiempo real.`, {
-          id: toastId,
-        });
-      } else {
-        setSupabaseConnected(true);
-        toast.success("Conexión con Supabase establecida. Los cambios se sincronizarán al instante.", {
-          id: toastId,
-        });
-      }
-      setIsSupabaseModalOpen(false);
-      setTimeout(() => window.location.reload(), 500);
-    } catch (err: any) {
-      console.error(err);
-      toast.error("Error al conectar con Supabase", {
-        id: toastId,
-        description: err?.message || "Verifica las credenciales y que hayas corrido el script SQL.",
-      });
-    } finally {
-      setIsTestingSupabase(false);
-    }
-  };
-
-  // Desconectar Supabase
-  const handleDisconnectSupabase = () => {
-    if (window.confirm("¿Seguro que deseas desconectar Supabase de este navegador? Volverás al modo de catálogo local.")) {
-      clearSupabaseConfig();
-      setSupabaseConnected(false);
-      setSupabaseUrlInput("");
-      setSupabaseKeyInput("");
-      toast.info("Supabase desconectado.");
-      setTimeout(() => window.location.reload(), 400);
-    }
-  };
-
-  // Copiar el esquema SQL canónico (importado como texto desde supabase-schema.sql)
-  const handleCopySchemaSql = async () => {
-    try {
-      await navigator.clipboard.writeText(schemaSql);
-      toast.success("Script SQL copiado al portapapeles", {
-        description: "Pégalo en el SQL Editor de tu proyecto en supabase.com y dale a RUN.",
-      });
-    } catch {
-      toast.error("No se pudo copiar el script", {
-        description: "Abre supabase-schema.sql en el repositorio y cópialo desde ahí.",
-      });
-    }
-  };
-
-  // Filtro de productos
-  const filteredProducts = products.filter((prod) => {
-    const matchesDept =
-      selectedDeptFilter === "todos" ||
-      (selectedDeptFilter === "solar" && (prod.department === "solar" || !prod.department)) ||
-      prod.department === selectedDeptFilter;
-
-    const matchesSearch =
-      !searchQuery.trim() ||
-      prod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prod.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prod.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      prod.tagline?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesDept && matchesSearch;
-  });
-
-  // Estadísticas rápidas
-  const totalCount = products.length;
-  const inStockCount = products.filter((p) => p.inStock).length;
-  const outOfStockCount = totalCount - inStockCount;
-  const solarCount = products.filter((p) => p.department === "solar" || !p.department).length;
-  const homeCount = products.filter((p) => p.department === "muebles" || p.department === "accesorios").length;
-
-  // ----------------------------------------------------------------------
-  // PANTALLA DE ACCESO (SUPABASE AUTH)
-  // ----------------------------------------------------------------------
-  if (isAuthChecking) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-slate-400">
-          <RefreshCw className="w-6 h-6 animate-spin text-amber-400" />
-          <p className="text-sm">Verificando sesión…</p>
-        </div>
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div>
+        <label className={LABEL} htmlFor="sb-url">
+          URL del proyecto
+        </label>
+        <input
+          id="sb-url"
+          type="url"
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          placeholder="https://xxxx.supabase.co"
+          className={INPUT}
+        />
       </div>
-    );
-  }
+      <div>
+        <label className={LABEL} htmlFor="sb-key">
+          Clave pública (anon / publishable)
+        </label>
+        <input
+          id="sb-key"
+          type="password"
+          value={key}
+          onChange={(event) => setKey(event.target.value)}
+          placeholder="sb_publishable_…"
+          className={INPUT}
+        />
+      </div>
+      <button type="submit" disabled={saving} className={`${BTN_GHOST} w-full`}>
+        <Cloud className="h-4 w-4" aria-hidden="true" />
+        Guardar conexión
+      </button>
+    </form>
+  );
+}
 
-  if (!isAuthenticated) {
-    const cloudReady = isCloudAuthAvailable();
+/* ------------------------------------------------------------------ */
+/* Editor de producto                                                  */
+/* ------------------------------------------------------------------ */
 
-    return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
-        {/* Glow de fondo */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[140px] pointer-events-none" />
+function Modal({
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  wide,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  wide?: boolean;
+}) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
-        <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10">
-          {/* Logo y Encabezado */}
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Lock className="w-8 h-8" />
-            </div>
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 backdrop-blur-sm sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onClick={onClose}
+    >
+      <div
+        className={`my-2 w-full ${wide ? "max-w-3xl" : "max-w-2xl"} rounded-2xl border border-border bg-card shadow-xl`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
+          <div>
+            <h2 className="text-base font-bold">{title}</h2>
+            {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </header>
 
-            <span className="inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-400 bg-amber-500/10 rounded-full mb-2">
-              Área Restringida
-            </span>
+        <div className="px-4 py-4 sm:px-5">{children}</div>
 
-            <h1 className="text-2xl font-bold tracking-tight text-white mb-2">
-              Panel de Vendedor
-            </h1>
+        {footer && (
+          <footer className="flex flex-col-reverse gap-2 border-t border-border px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+            {footer}
+          </footer>
+        )}
+      </div>
+    </div>
+  );
+}
 
-            <p className="text-sm text-slate-400 mb-6">
-              Inicia sesión con tu cuenta de vendedor para gestionar precios, inventario y catálogo.
-            </p>
+function ProductEditorModal({
+  state,
+  saving,
+  uploading,
+  onChange,
+  onClose,
+  onSubmit,
+  onUploadImages,
+}: {
+  state: EditorState;
+  saving: boolean;
+  uploading: boolean;
+  onChange: (draft: ProductDraft) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  onUploadImages: (files: File[]) => void;
+}) {
+  const draft = state.draft;
+  const gallery = draft.images?.length ? draft.images : draft.image ? [draft.image] : [];
+  const isSolar = draft.department !== "muebles" && draft.department !== "accesorios";
+
+  const setField = <K extends keyof ProductDraft>(key: K, value: ProductDraft[K]) => {
+    onChange({ ...draft, [key]: value });
+  };
+
+  const setDepartment = (department: ProductDepartment) => {
+    const category: Product["category"] =
+      department === "muebles" ? "muebles" : department === "accesorios" ? "accesorios" : "farolas";
+    onChange({ ...draft, department, category });
+  };
+
+  return (
+    <Modal
+      title={state.mode === "create" ? "Nuevo producto" : "Editar producto"}
+      subtitle="Los cambios se guardan en la nube."
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className={BTN_GHOST} onClick={onClose} disabled={saving}>
+            Cancelar
+          </button>
+          <button type="button" className={BTN_PRIMARY} onClick={onSubmit} disabled={saving}>
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Check className="h-4 w-4" aria-hidden="true" />
+            )}
+            {state.mode === "create" ? "Crear producto" : "Guardar cambios"}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className={LABEL} htmlFor="prod-name">
+              Nombre
+            </label>
+            <input
+              id="prod-name"
+              type="text"
+              value={draft.name}
+              onChange={(event) => setField("name", event.target.value)}
+              placeholder="Ej: Farola LED Solar Rolinger 1200W"
+              className={INPUT}
+            />
           </div>
 
-          {cloudReady ? (
+          <div className="sm:col-span-2">
+            <label className={LABEL} htmlFor="prod-tagline">
+              Frase corta (opcional)
+            </label>
+            <input
+              id="prod-tagline"
+              type="text"
+              value={draft.tagline}
+              onChange={(event) => setField("tagline", event.target.value)}
+              placeholder="Ej: Ilumina toda la noche sin cables"
+              className={INPUT}
+            />
+          </div>
+
+          <div>
+            <label className={LABEL} htmlFor="prod-dept">
+              Departamento
+            </label>
+            <select
+              id="prod-dept"
+              value={draft.department ?? "solar"}
+              onChange={(event) => setDepartment(event.target.value as ProductDepartment)}
+              className={INPUT}
+            >
+              <option value="solar">Iluminación Solar</option>
+              <option value="muebles">Muebles & Terraza</option>
+              <option value="accesorios">Accesorios del Hogar</option>
+            </select>
+          </div>
+
+          <div>
+            <label className={LABEL} htmlFor="prod-category">
+              Categoría
+            </label>
+            <select
+              id="prod-category"
+              value={draft.category}
+              onChange={(event) => setField("category", event.target.value as Product["category"])}
+              className={INPUT}
+            >
+              <option value="farolas">Farolas</option>
+              <option value="reflector">Reflectores</option>
+              <option value="solar">Solar</option>
+              <option value="pared">Pared</option>
+              <option value="potencia">Potencia</option>
+              <option value="jardin">Jardín</option>
+              <option value="decoracion">Decoración</option>
+              <option value="muebles">Muebles</option>
+              <option value="accesorios">Accesorios</option>
+            </select>
+          </div>
+
+          <div>
+            <label className={LABEL} htmlFor="prod-price">
+              Precio (USD)
+            </label>
+            <input
+              id="prod-price"
+              type="text"
+              inputMode="decimal"
+              value={draft.price}
+              onChange={(event) => setField("price", event.target.value)}
+              placeholder="0.00"
+              className={INPUT}
+            />
+          </div>
+
+          <div>
+            <label className={LABEL} htmlFor="prod-original">
+              Precio anterior (USD)
+            </label>
+            <input
+              id="prod-original"
+              type="text"
+              inputMode="decimal"
+              value={draft.originalPrice}
+              onChange={(event) => setField("originalPrice", event.target.value)}
+              placeholder="Igual al precio actual"
+              className={INPUT}
+            />
+          </div>
+
+          <div>
+            <label className={LABEL} htmlFor="prod-badge">
+              Etiqueta (opcional)
+            </label>
+            <input
+              id="prod-badge"
+              type="text"
+              value={draft.badge ?? ""}
+              onChange={(event) => setField("badge", event.target.value)}
+              placeholder="Ej: Más vendido"
+              className={INPUT}
+            />
+          </div>
+
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => setField("inStock", !draft.inStock)}
+              aria-pressed={draft.inStock}
+              className={`${BTN_GHOST} w-full ${draft.inStock ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300" : ""}`}
+            >
+              <Check className="h-4 w-4" aria-hidden="true" />
+              {draft.inStock ? "Disponible" : "Agotado"}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className={LABEL} htmlFor="prod-description">
+            Descripción
+          </label>
+          <textarea
+            id="prod-description"
+            rows={3}
+            value={draft.description}
+            onChange={(event) => setField("description", event.target.value)}
+            placeholder="Describe el producto en una o dos frases."
+            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+
+        <div>
+          <label className={LABEL} htmlFor="prod-features">
+            Características (una por línea)
+          </label>
+          <textarea
+            id="prod-features"
+            rows={4}
+            value={draft.features.join("\n")}
+            onChange={(event) => setField("features", event.target.value.split("\n"))}
+            placeholder={"Panel solar monocristalino\nBatería de litio 20.000 mAh\nSensor de movimiento"}
+            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+
+        <fieldset className="grid gap-3 sm:grid-cols-3">
+          <legend className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Ficha técnica
+          </legend>
+
+          {isSolar ? (
             <>
-              {/* Formulario de acceso */}
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label htmlFor="seller-email" className="text-xs text-slate-400 block mb-1.5">
-                    Correo electrónico
-                  </label>
-                  <input
-                    id="seller-email"
-                    type="email"
-                    autoComplete="username"
-                    required
-                    value={emailInput}
-                    onChange={(e) => {
-                      setEmailInput(e.target.value);
-                      setAuthError("");
-                    }}
-                    placeholder="vendedor@correo.com"
-                    className="w-full py-3 px-4 bg-slate-950/70 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                    autoFocus
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="seller-password" className="text-xs text-slate-400 block mb-1.5">
-                    Contraseña
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="seller-password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      required
-                      value={passwordInput}
-                      onChange={(e) => {
-                        setPasswordInput(e.target.value);
-                        setAuthError("");
-                      }}
-                      placeholder="••••••••"
-                      className="w-full py-3 px-4 pr-11 bg-slate-950/70 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
-                      title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {authError && (
-                  <p
-                    role="alert"
-                    className="text-sm text-red-400 flex items-center justify-center gap-1.5 animate-in fade-in"
-                  >
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    {authError}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isAuthSubmitting}
-                  className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-base shadow-lg shadow-amber-500/20 transition-all transform active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isAuthSubmitting ? (
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Lock className="w-5 h-5" />
-                  )}
-                  {isAuthSubmitting ? "Verificando…" : "Iniciar Sesión"}
-                </button>
-              </form>
-
-              <div className="mt-6 pt-5 border-t border-slate-800/80 text-xs text-slate-500 space-y-1">
-                <p>
-                  El acceso se gestiona en Supabase → <strong className="text-slate-300">Authentication</strong>.
-                </p>
-                <p>Si olvidaste tu contraseña, pídele al administrador que la restablezca.</p>
+              <div>
+                <label className={LABEL} htmlFor="prod-lumens">
+                  Potencia / lúmenes
+                </label>
+                <input
+                  id="prod-lumens"
+                  type="text"
+                  value={draft.lumens ?? ""}
+                  onChange={(event) => setField("lumens", event.target.value)}
+                  placeholder="Ej: 1200W"
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="prod-battery">
+                  Batería
+                </label>
+                <input
+                  id="prod-battery"
+                  type="text"
+                  value={draft.batteryLife ?? ""}
+                  onChange={(event) => setField("batteryLife", event.target.value)}
+                  placeholder="Ej: 10-12 horas"
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <label className={LABEL} htmlFor="prod-waterproof">
+                  Resistencia
+                </label>
+                <input
+                  id="prod-waterproof"
+                  type="text"
+                  value={draft.waterproof ?? ""}
+                  onChange={(event) => setField("waterproof", event.target.value)}
+                  placeholder="Ej: IP66"
+                  className={INPUT}
+                />
               </div>
             </>
           ) : (
             <>
-              {/* Sin Supabase configurado: permitir conectar la nube antes de entrar */}
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-300 text-xs leading-relaxed">
-                <p className="font-bold text-amber-300 mb-1">Supabase no está configurado</p>
-                <p>
-                  El panel usa autenticación segura en la nube. Conecta tu proyecto para poder iniciar
-                  sesión como vendedor.
-                </p>
+              <div>
+                <label className={LABEL} htmlFor="prod-material">
+                  Material
+                </label>
+                <input
+                  id="prod-material"
+                  type="text"
+                  value={draft.material ?? ""}
+                  onChange={(event) => setField("material", event.target.value)}
+                  placeholder="Ej: Ratán sintético"
+                  className={INPUT}
+                />
               </div>
-
-              <form onSubmit={handleSaveSupabaseFromLogin} className="space-y-4 mt-4">
-                <div>
-                  <label htmlFor="sb-url" className="text-xs text-slate-400 block mb-1.5">
-                    URL del proyecto
-                  </label>
-                  <input
-                    id="sb-url"
-                    type="url"
-                    required
-                    value={supabaseUrlInput}
-                    onChange={(e) => setSupabaseUrlInput(e.target.value)}
-                    placeholder="https://tuproyecto.supabase.co"
-                    className="w-full py-3 px-4 bg-slate-950/70 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="sb-key" className="text-xs text-slate-400 block mb-1.5">
-                    Clave pública (anon / publishable)
-                  </label>
-                  <input
-                    id="sb-key"
-                    type="password"
-                    required
-                    value={supabaseKeyInput}
-                    onChange={(e) => setSupabaseKeyInput(e.target.value)}
-                    placeholder="sb_publishable_..."
-                    className="w-full py-3 px-4 bg-slate-950/70 border border-slate-700 rounded-2xl text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-base shadow-lg shadow-amber-500/20 transition-all transform active:scale-98 flex items-center justify-center gap-2"
-                >
-                  <Database className="w-5 h-5" />
-                  Guardar conexión
-                </button>
-              </form>
+              <div className="sm:col-span-2">
+                <label className={LABEL} htmlFor="prod-dimensions">
+                  Medidas
+                </label>
+                <input
+                  id="prod-dimensions"
+                  type="text"
+                  value={draft.dimensions ?? ""}
+                  onChange={(event) => setField("dimensions", event.target.value)}
+                  placeholder="Ej: 120x60x75 cm"
+                  className={INPUT}
+                />
+              </div>
             </>
           )}
+        </fieldset>
 
-          {/* Enlace para volver a la tienda */}
-          <div className="mt-5 text-center">
-            <Link
-              to="/"
-              className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1.5 transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Regresar a la tienda
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ----------------------------------------------------------------------
-  // PANEL PRINCIPAL DE ADMINISTRACIÓN (DESBLOQUEADO)
-  // ----------------------------------------------------------------------
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased pb-24">
-      {/* Barra superior de administración */}
-      <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Package className="w-5 h-5" />
-            </div>
+        <div className="rounded-2xl border border-border bg-background/60 p-3">
+          <div className="mb-3 flex items-center justify-between gap-2">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base tracking-tight text-white">SOLAR & HOGAR</span>
-                <span className="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider bg-amber-500 text-slate-950 rounded-md">
-                  Panel Vendedor
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 hidden sm:block">Control total de precios, inventario y productos</p>
+              <p className="text-xs font-bold">Fotos</p>
+              <p className="text-[11px] text-muted-foreground">
+                La primera foto se usa como portada.
+              </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              to="/"
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition-colors flex items-center gap-1.5"
+            <label
+              htmlFor="prod-photos"
+              className={`${BTN_GHOST} cursor-pointer text-xs ${uploading ? "opacity-50" : ""}`}
             >
-              <ArrowLeft className="w-4 h-4" />
-              Ver Tienda
-            </Link>
-
-            <button
-              onClick={() => setIsSupabaseModalOpen(true)}
-              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 border ${
-                supabaseConnected
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/10"
-                  : "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
-              }`}
-              title="Base de datos y sincronización en la nube"
-            >
-              {supabaseConnected ? (
-                <>
-                  <Cloud className="w-4 h-4 text-emerald-400 animate-pulse" />
-                  <span className="hidden sm:inline">Nube Conectada</span>
-                </>
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
-                <>
-                  <Database className="w-4 h-4 text-amber-400" />
-                  <span className="hidden sm:inline">Conectar Nube</span>
-                </>
+                <Plus className="h-4 w-4" aria-hidden="true" />
               )}
-            </button>
-
-            {sellerEmail && (
-              <span
-                className="hidden lg:inline-flex max-w-[220px] truncate px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/60 text-[11px] font-medium text-slate-300"
-                title={`Sesión iniciada como ${sellerEmail}`}
-              >
-                {sellerEmail}
-              </span>
-            )}
-
-            <button
-              onClick={handleLogout}
-              className="px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-medium text-red-300 transition-colors flex items-center gap-1.5"
-              title="Cerrar Sesión"
-            >
-              <Lock className="w-4 h-4" />
-              <span className="hidden sm:inline">Cerrar</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-8 pt-6 sm:pt-8 space-y-6">
-        {/* Banner de bienvenida y métricas */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Catálogo Total</p>
-              <p className="text-xl font-bold text-white">{totalCount} productos</p>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">En Stock</p>
-              <p className="text-xl font-bold text-emerald-400">{inStockCount} listos</p>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Sun className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Energía Solar</p>
-              <p className="text-xl font-bold text-amber-400">{solarCount} modelos</p>
-            </div>
-          </div>
-
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-              <Sofa className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Muebles & Hogar</p>
-              <p className="text-xl font-bold text-purple-400">{homeCount} publicados</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Banner de Sincronización Multi-Dispositivo (Nube Supabase o Código) */}
-        {supabaseConnected ? (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-slate-900 to-slate-900 border border-emerald-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-                <Cloud className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="font-bold text-white text-sm flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Sincronización en Tiempo Real Activa (Supabase Cloud)
-                </span>
-                <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">
-                  Cualquier artículo que agregues, edites o elimines desde tu móvil se actualizará <strong>instantáneamente</strong> en tu PC y para todos los visitantes sin necesidad de recargar.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
-              <button
-                type="button"
-                onClick={() => setIsSupabaseModalOpen(true)}
-                className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 cursor-pointer"
-              >
-                <Database className="w-4 h-4" />
-                <span>Estado Nube</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-slate-900 to-slate-900 border border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                <Smartphone className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="font-bold text-white text-sm flex items-center gap-1.5">
-                  ¿Quieres que tus artículos se actualicen al instante entre móvil y computadora?
-                </span>
-                <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">
-                  Conecta tu base de datos gratuita en <strong>Supabase</strong> para que cualquier producto subido desde el celular aparezca en la PC al instante en 0 segundos.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
-              <button
-                type="button"
-                onClick={() => setIsSupabaseModalOpen(true)}
-                className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 cursor-pointer"
-              >
-                <Cloud className="w-4 h-4" />
-                <span>Conectar Nube (Supabase)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsSyncModalOpen(true)}
-                className="w-full md:w-auto px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                title="Transferir manualmente por código"
-              >
-                <Share2 className="w-4 h-4 text-slate-400" />
-                <span className="hidden sm:inline">Transferir Código</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Solicitudes registradas (cotizaciones y pedidos) */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between gap-3 px-4 py-3.5">
-            <button
-              type="button"
-              onClick={() => setIsRequestsOpen((v) => !v)}
-              className="flex flex-1 items-center gap-3 text-left cursor-pointer"
-              aria-expanded={isRequestsOpen}
-            >
-              <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shrink-0">
-                <ClipboardList className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-white flex items-center gap-2">
-                  Solicitudes registradas
-                  {requests.length > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-sky-500/15 text-sky-300 text-[11px] font-bold">
-                      {requests.length}
-                    </span>
-                  )}
-                </p>
-                <p className="text-[11px] text-slate-400 truncate">
-                  Cotizaciones y pedidos con precios validados por el servidor.
-                </p>
-              </div>
-              <ChevronDown
-                className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ${
-                  isRequestsOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => void loadRequests()}
-              disabled={requestsLoading}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-xs font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Volver a cargar las solicitudes"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${requestsLoading ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Actualizar</span>
-            </button>
-          </div>
-
-          {isRequestsOpen && (
-            <div className="border-t border-slate-800 px-4 py-3">
-              {requestsError ? (
-                <p className="text-xs text-amber-300 py-2 leading-relaxed">{requestsError}</p>
-              ) : requests.length === 0 ? (
-                <p className="text-xs text-slate-400 py-2 leading-relaxed">
-                  {requestsLoading
-                    ? "Cargando solicitudes..."
-                    : "Aún no hay cotizaciones ni pedidos registrados. Cada documento que generes desde la tienda aparecerá aquí con su número oficial."}
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs min-w-[760px]">
-                    <thead>
-                      <tr className="text-[11px] uppercase tracking-wider text-slate-500">
-                        <th className="py-2 pr-3 font-bold">Código</th>
-                        <th className="py-2 pr-3 font-bold">Tipo</th>
-                        <th className="py-2 pr-3 font-bold">Cliente</th>
-                        <th className="py-2 pr-3 font-bold">Productos</th>
-                        <th className="py-2 pr-3 font-bold text-right">Total</th>
-                        <th className="py-2 font-bold">Fecha</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/70">
-                      {requests.map((request) => (
-                        <tr key={request.id} className="align-top">
-                          <td className="py-2.5 pr-3">
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                try {
-                                  await navigator.clipboard.writeText(request.code);
-                                  toast.success(`Código ${request.code} copiado`);
-                                } catch {
-                                  toast.error("No se pudo copiar el código");
-                                }
-                              }}
-                              className="font-mono font-bold text-sky-300 hover:text-sky-200 inline-flex items-center gap-1 cursor-pointer"
-                              title="Copiar código"
-                            >
-                              {request.code}
-                              <Copy className="w-3 h-3 opacity-60" />
-                            </button>
-                          </td>
-                          <td className="py-2.5 pr-3">
-                            <span
-                              className={`px-1.5 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap ${
-                                request.kind === "pedido"
-                                  ? "bg-emerald-500/15 text-emerald-300"
-                                  : "bg-sky-500/15 text-sky-300"
-                              }`}
-                            >
-                              {request.kind === "pedido" ? "Pedido" : "Cotización"}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-3 text-slate-200">
-                            <span className="block font-semibold truncate max-w-[170px]">
-                              {request.customerName}
-                            </span>
-                            {request.customerPhone && (
-                              <span className="block text-[11px] text-slate-500">
-                                {request.customerPhone}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2.5 pr-3 text-slate-400 max-w-[260px]">
-                            {request.items
-                              .map((item) => `${item.quantity}× ${item.name}`)
-                              .join(", ")}
-                          </td>
-                          <td className="py-2.5 pr-3 text-right font-bold text-white whitespace-nowrap">
-                            ${request.total.toFixed(2)}
-                          </td>
-                          <td className="py-2.5 text-slate-400 whitespace-nowrap">
-                            {new Date(request.createdAt).toLocaleString("es-PA", {
-                              dateStyle: "short",
-                              timeStyle: "short",
-                            })}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Barra de herramientas y filtros */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          {/* Búsqueda */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              Subir fotos
+            </label>
             <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por nombre, ID, potencia..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+              id="prod-photos"
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              disabled={uploading}
+              onChange={(event) => {
+                onUploadImages(Array.from(event.target.files ?? []));
+                event.target.value = "";
+              }}
             />
           </div>
 
-          {/* Filtros de departamento */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-            {[
-              { id: "todos", label: "Todos" },
-              { id: "solar", label: "Solar" },
-              { id: "muebles", label: "Muebles" },
-              { id: "accesorios", label: "Accesorios" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setSelectedDeptFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  selectedDeptFilter === tab.id
-                    ? "bg-amber-500 text-slate-950 shadow-sm"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Acciones principales */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleStartCreateNew}
-              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              Nuevo Producto
-            </button>
-
-            {/* Botón sincronizar */}
-            <button
-              onClick={() => setIsSyncModalOpen(true)}
-              className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
-              title="Sincronizar catálogo entre dispositivos"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sincronizar</span>
-            </button>
-
-            {/* Menú de respaldo */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handleExportJson}
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
-                title="Descargar respaldo JSON del catálogo"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-
-              <label
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
-                title="Restaurar catálogo desde JSON"
-              >
-                <Upload className="w-4 h-4" />
-                <input type="file" accept=".json" onChange={handleImportJson} className="hidden" />
-              </label>
-
-              <button
-                onClick={handleResetCatalog}
-                className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-red-500/20 hover:text-red-300 text-slate-400 text-xs font-medium transition-colors cursor-pointer"
-                title="Restablecer productos originales de fábrica"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Lista de productos */}
-        {filteredProducts.length === 0 ? (
-          <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-12 text-center">
-            <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-white mb-1">No se encontraron productos</h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Prueba cambiando el filtro o agrega un nuevo producto al catálogo.
+          {gallery.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
+              Sin fotos todavía
             </p>
-            <button
-              onClick={handleStartCreateNew}
-              className="px-4 py-2 bg-amber-500 text-slate-950 text-xs font-bold rounded-xl"
-            >
-              + Crear Producto
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredProducts.map((prod) => {
-              const currentInline = inlinePrices[prod.id] || {
-                price: prod.price.toString(),
-                originalPrice: prod.originalPrice.toString(),
-              };
-
-              return (
-                <div
-                  key={prod.id}
-                  className={`bg-slate-900/90 border rounded-2xl overflow-hidden transition-all flex flex-col ${
-                    prod.inStock ? "border-slate-800 hover:border-slate-700" : "border-red-900/40 opacity-80"
-                  }`}
-                >
-                  {/* Encabezado de la tarjeta con imagen */}
-                  <div className="p-4 flex gap-3.5 items-start">
-                    <div className="relative w-20 h-20 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden flex-shrink-0">
-                      <img
-                        src={prod.image}
-                        alt={prod.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/products/lampara-1200w/image-1.jpg";
-                        }}
-                      />
-                      {!prod.inStock && (
-                        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-[1px] flex items-center justify-center">
-                          <span className="text-[11px] font-bold text-red-400 uppercase tracking-wider">Agotado</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                        <span
-                          className={`px-2 py-0.5 text-[11px] font-bold uppercase rounded-md ${
-                            prod.department === "muebles"
-                              ? "bg-purple-500/20 text-purple-300"
-                              : prod.department === "accesorios"
-                              ? "bg-sky-500/20 text-sky-300"
-                              : "bg-amber-500/20 text-amber-300"
-                          }`}
-                        >
-                          {prod.department || "solar"}
-                        </span>
-                        {prod.badge && (
-                          <span className="px-2 py-0.5 text-[11px] font-semibold bg-slate-800 text-slate-300 rounded-md truncate max-w-[120px]">
-                            {prod.badge}
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="font-bold text-sm text-white leading-snug line-clamp-2" title={prod.name}>
-                        {prod.name}
-                      </h3>
-
-                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">ID: {prod.id}</p>
-                    </div>
-                  </div>
-
-                  {/* Precios e inventario rápido */}
-                  <div className="px-4 py-3 bg-slate-950/60 border-t border-b border-slate-800/80 space-y-2.5">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[11px] font-medium text-slate-400 block mb-1">Precio Venta ($)</label>
-                        <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-amber-400 font-bold">
-                            $
-                          </span>
-                          <input
-                            type="text"
-                            value={currentInline.price}
-                            onChange={(e) =>
-                              setInlinePrices({
-                                ...inlinePrices,
-                                [prod.id]: { ...currentInline, price: e.target.value },
-                              })
-                            }
-                            className="w-full bg-slate-900 border border-slate-700/80 rounded-lg pl-6 pr-2 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-amber-400"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-medium text-slate-400 block mb-1">PVP Tachado ($)</label>
-                        <div className="relative">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">$</span>
-                          <input
-                            type="text"
-                            value={currentInline.originalPrice}
-                            onChange={(e) =>
-                              setInlinePrices({
-                                ...inlinePrices,
-                                [prod.id]: { ...currentInline, originalPrice: e.target.value },
-                              })
-                            }
-                            className="w-full bg-slate-900 border border-slate-700/80 rounded-lg pl-6 pr-2 py-1.5 text-xs text-slate-400 focus:outline-none focus:border-amber-400"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1">
-                      {/* Switch de stock */}
+          ) : (
+            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {gallery.map((url, index) => {
+                const isCover = draft.image === url;
+                return (
+                  <li key={`${url.slice(-24)}-${index}`} className="relative overflow-hidden rounded-xl border border-border">
+                    <img src={url} alt="" className="h-20 w-full object-cover" loading="lazy" />
+                    <div className="flex items-center justify-between gap-1 bg-card px-1.5 py-1">
                       <button
                         type="button"
-                        onClick={() => handleToggleStock(prod)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors ${
-                          prod.inStock
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                            : "bg-red-500/10 text-red-400 border border-red-500/30"
+                        onClick={() => setField("image", url)}
+                        className={`text-[10px] font-bold ${
+                          isCover ? "text-emerald-700" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {prod.inStock ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                        {prod.inStock ? "Disponible" : "Agotado"}
+                        {isCover ? "Portada" : "Usar"}
                       </button>
-
-                      {/* Botón aplicar precio */}
                       <button
                         type="button"
-                        onClick={() => handleQuickSavePrice(prod.id)}
-                        className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                        aria-label="Quitar foto"
+                        onClick={() => {
+                          const nextGallery = gallery.filter((_, i) => i !== index);
+                          onChange({
+                            ...draft,
+                            images: nextGallery,
+                            image: isCover ? nextGallery[0] ?? "" : draft.image,
+                          });
+                        }}
+                        className="text-muted-foreground transition-colors hover:text-red-700"
                       >
-                        <Save className="w-3 h-3" />
-                        Guardar Precio
+                        <X className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
                     </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Cotizaciones                                                        */
+/* ------------------------------------------------------------------ */
+
+function RequestsPanel({
+  requests,
+  loading,
+  error,
+  onRefresh,
+  onNewQuote,
+}: {
+  requests: RequestSummary[];
+  loading: boolean;
+  error: string;
+  onRefresh: () => void;
+  onNewQuote: () => void;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [workingId, setWorkingId] = useState<string | null>(null);
+
+  const downloadPdf = async (request: RequestSummary) => {
+    setWorkingId(request.id);
+    try {
+      await generateQuotationPDF({
+        clientName: request.customerName,
+        clientPhone: request.customerPhone,
+        items: requestToCartItems(request),
+        quoteNumber: request.code,
+      });
+      toast.success(`PDF de ${request.code} generado`);
+    } catch (err) {
+      toast.error("No se pudo generar el PDF", { description: errorMessage(err) });
+    } finally {
+      setWorkingId(null);
+    }
+  };
+
+  const sendWhatsApp = (request: RequestSummary) => {
+    const message = buildQuoteMessage({
+      code: request.code,
+      date: formatDateTime(request.createdAt),
+      clientName: request.customerName,
+      clientPhone: request.customerPhone,
+      sellerName: "",
+      items: requestToCartItems(request),
+      total: request.total,
+    });
+    const target = normalizePhone(request.customerPhone) || STORE_WHATSAPP;
+    window.open(`https://wa.me/${target}?text=${encodeURIComponent(message)}`, "_blank");
+  };
+
+  return (
+    <section aria-label="Cotizaciones y pedidos">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-base font-bold">Cotizaciones y pedidos</h2>
+          <p className="text-xs text-muted-foreground">
+            Registro oficial con los precios guardados en el servidor.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            aria-label="Actualizar lista"
+            className={`${BTN_GHOST} px-3`}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
+            <span className="hidden sm:inline">Actualizar</span>
+          </button>
+          <button type="button" className={BTN_PRIMARY} onClick={onNewQuote}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Nueva cotización
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <p
+          role="alert"
+          className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+        >
+          {error}
+        </p>
+      )}
+
+      {loading && requests.length === 0 ? (
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-card py-10 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Cargando solicitudes…
+        </div>
+      ) : requests.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center">
+          <FileText className="mx-auto mb-2 h-6 w-6 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm font-semibold">Todavía no hay solicitudes</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Crea una cotización o espera los pedidos de la tienda.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {requests.map((request) => {
+            const expanded = expandedId === request.id;
+            const isWorking = workingId === request.id;
+
+            return (
+              <article key={request.id} className="rounded-2xl border border-border bg-card p-3 sm:p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[11px] font-semibold text-muted-foreground">
+                        {request.code}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                          request.kind === "pedido"
+                            ? "bg-primary/10 text-primary"
+                            : "bg-solar/25 text-solar-ink"
+                        }`}
+                      >
+                        {request.kind === "pedido" ? "Pedido" : "Cotización"}
+                      </span>
+                    </div>
+                    <h3 className="mt-1 truncate text-sm font-semibold">{request.customerName}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(request.createdAt)} · {request.items.length} artículo(s)
+                    </p>
                   </div>
 
-                  {/* Acciones de la tarjeta */}
-                  <div className="p-3 mt-auto flex items-center justify-between gap-1.5 bg-slate-900/40 text-xs">
-                    <button
-                      onClick={() => {
-                        setEditingProduct({ ...prod });
-                        setIsCreatingNew(false);
-                      }}
-                      className="flex-1 py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <Edit className="w-3.5 h-3.5 text-amber-400" />
-                      Editar Todo
-                    </button>
-
-                    <button
-                      onClick={() => handleDuplicateProduct(prod)}
-                      className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors"
-                      title="Duplicar producto"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteProduct(prod)}
-                      className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-red-500/20 hover:text-red-400 text-slate-400 transition-colors"
-                      title="Eliminar producto"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="text-right">
+                    <p className="text-base font-bold">{money(request.total)}</p>
+                    <p className="text-[11px] text-muted-foreground">USD</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
 
-      {/* ---------------------------------------------------------------------- */}
-      {/* MODAL COMPLETO DE CREACIÓN / EDICIÓN DE PRODUCTO                       */}
-      {/* ---------------------------------------------------------------------- */}
-      {editingProduct && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6 animate-in fade-in zoom-in-95">
-            {/* Cabecera del modal */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-                  {isCreatingNew ? "Nuevo Producto" : "Editar Ficha de Producto"}
-                </span>
-                <h2 className="text-xl font-bold text-white">
-                  {isCreatingNew ? "Agregar Producto al Catálogo" : editingProduct.name || "Sin nombre"}
-                </h2>
-              </div>
-              <button
-                onClick={() => setEditingProduct(null)}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveModalProduct} className="space-y-5">
-              {/* Información básica */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Nombre del Producto *</label>
-                  <input
-                    type="text"
-                    required
-                    value={editingProduct.name}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                    placeholder="Ej: Farola Solar 1200W Rolinger / Sillón Nórdico Teca"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Departamento *</label>
-                  <select
-                    value={editingProduct.department || "solar"}
-                    onChange={(e) => {
-                      const newDept = e.target.value as ProductDepartment;
-                      const isNowSolar = newDept === "solar";
-                      setEditingProduct({
-                        ...editingProduct,
-                        department: newDept,
-                        lumens: isNowSolar ? (editingProduct.lumens || "Alta Potencia") : "",
-                        batteryLife: isNowSolar ? (editingProduct.batteryLife || "10-12 Horas") : "",
-                        category: isNowSolar
-                          ? (editingProduct.category === "muebles" || editingProduct.category === "accesorios" ? "farolas" : editingProduct.category)
-                          : newDept,
-                      });
-                    }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                  >
-                    <option value="solar">Iluminación Solar</option>
-                    <option value="muebles">Muebles para el Hogar</option>
-                    <option value="accesorios">Accesorios del Hogar</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Categoría / Tipo</label>
-                  <input
-                    type="text"
-                    value={editingProduct.category}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        category: e.target.value as any,
-                      })
-                    }
-                    placeholder="farolas, reflector, muebles, decoracion..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Etiqueta / Badge</label>
-                  <input
-                    type="text"
-                    value={editingProduct.badge || ""}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, badge: e.target.value })}
-                    placeholder="Ej: Más Vendido, Oferta Especial, 1200W"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">ID del Producto (único)</label>
-                  <input
-                    type="text"
-                    value={editingProduct.id}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, id: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-400 font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-              </div>
-
-              {/* Precios e inventario */}
-              <div className="p-4 bg-slate-950/70 border border-slate-800/80 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Precio de Venta ($) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={editingProduct.price}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        price: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs font-bold text-amber-400 focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Precio Anterior Tachado ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={editingProduct.originalPrice}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        originalPrice: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-400 focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div className="flex flex-col justify-end">
-                  <label className="text-xs font-semibold text-slate-300 block mb-2">Estado de Stock</label>
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setEditingProduct({ ...editingProduct, inStock: !editingProduct.inStock })}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                      editingProduct.inStock
-                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                        : "bg-red-500/20 text-red-400 border border-red-500/30"
-                    }`}
+                    onClick={() => void downloadPdf(request)}
+                    disabled={isWorking}
+                    className={`${BTN_GHOST} h-10 px-3 text-xs`}
                   >
-                    {editingProduct.inStock ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                    {editingProduct.inStock ? "Disponible para Venta" : "Marcado como Agotado"}
+                    {isWorking ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => sendWhatsApp(request)}
+                    className={`${BTN_GHOST} h-10 px-3 text-xs`}
+                  >
+                    <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                    WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(request.code);
+                      toast.success("Código copiado");
+                    }}
+                    className={`${BTN_GHOST} h-10 px-3 text-xs`}
+                  >
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                    Código
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : request.id)}
+                    aria-expanded={expanded}
+                    className="ml-auto inline-flex h-10 items-center gap-1 rounded-xl px-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    {expanded ? "Ocultar" : "Ver detalle"}
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+                      aria-hidden="true"
+                    />
                   </button>
                 </div>
-              </div>
 
-              {/* Subtítulo y Descripción */}
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Frase Resumen (Tagline)</label>
-                  <input
-                    type="text"
-                    value={editingProduct.tagline}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, tagline: e.target.value })}
-                    placeholder="Ej: Iluminación inteligente de gran alcance con sensor y cero consumo eléctrico"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Descripción Detallada</label>
-                  <textarea
-                    rows={4}
-                    value={editingProduct.description}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                    placeholder="Escribe los detalles completos, materiales, usos recomendados..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400 leading-relaxed"
-                  />
-                </div>
-              </div>
-
-              {/* Especificaciones: Solares vs Hogar */}
-              {editingProduct.department === "solar" ? (
-                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-3">
-                  <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
-                    <Sun className="w-4 h-4" />
-                    <span>Especificaciones Exclusivas de Lámparas Solares</span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Estos términos de potencia en Watts, batería y tiempo de duración de carga <strong>solo aplican a lámparas solares</strong>:
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Potencia en Watts / Lúmenes</label>
-                      <input
-                        type="text"
-                        value={editingProduct.lumens || ""}
-                        onChange={(e) => setEditingProduct({ ...editingProduct, lumens: e.target.value })}
-                        placeholder="Ej: 1200W • Matriz LED"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Autonomía / Duración de Carga</label>
-                      <input
-                        type="text"
-                        value={editingProduct.batteryLife || ""}
-                        onChange={(e) => setEditingProduct({ ...editingProduct, batteryLife: e.target.value })}
-                        placeholder="Ej: 10 a 12h (Modo Radar)"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Protección Intemperie</label>
-                      <input
-                        type="text"
-                        value={editingProduct.waterproof || ""}
-                        onChange={(e) => setEditingProduct({ ...editingProduct, waterproof: e.target.value })}
-                        placeholder="Ej: IP66 Impermeable"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
-                    <Package className="w-4 h-4" />
-                    <span>Especificaciones de Hogar ({editingProduct.department === "muebles" ? "Muebles" : "Accesorios"})</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Este artículo pertenece al catálogo de hogar. <strong>No mostrará Watts ni duración de batería</strong> en la tienda.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Material / Acabados (Opcional)</label>
-                      <input
-                        type="text"
-                        value={editingProduct.material || ""}
-                        onChange={(e) => setEditingProduct({ ...editingProduct, material: e.target.value })}
-                        placeholder="Ej: Madera Teca, Acero, Ratán sintético..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-medium text-slate-300 block mb-1">Dimensiones / Formato (Opcional)</label>
-                      <input
-                        type="text"
-                        value={editingProduct.dimensions || ""}
-                        onChange={(e) => setEditingProduct({ ...editingProduct, dimensions: e.target.value })}
-                        placeholder="Ej: 120x60x75 cm / 3 Cuerpos"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Galería de imágenes (Portada + Fotos adicionales) */}
-              <div className="space-y-4 p-4 bg-slate-950/70 border border-slate-800/80 rounded-2xl">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <label className="text-xs font-bold text-white block">
-                      Fotos del Producto ({editingProduct.images?.length || (editingProduct.image ? 1 : 0)})
-                    </label>
-                    <p className="text-[11px] text-slate-400">
-                      Sube varias fotos para que tus clientes vean el producto desde distintos ángulos.
-                    </p>
-                  </div>
-
-                  <label
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all self-start sm:self-auto ${
-                      isUploadingImage
-                        ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                        : "bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 cursor-pointer"
-                    }`}
-                  >
-                    {isUploadingImage ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                        <span>Subiendo fotos...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-3.5 h-3.5 stroke-[2.5]" />
-                        <span>+ Subir Fotos (Permite varias)</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          disabled={isUploadingImage}
-                          onChange={handleMultipleImagesUpload}
-                          className="hidden"
-                        />
-                      </>
+                {expanded && (
+                  <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
+                    {request.customerPhone && (
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Teléfono:{" "}
+                        <span className="font-medium text-foreground">{request.customerPhone}</span>
+                      </p>
                     )}
-                  </label>
-                </div>
-
-                {/* Grid de miniaturas de la galería */}
-                {(editingProduct.images && editingProduct.images.length > 0) || editingProduct.image ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 pt-1">
-                    {(editingProduct.images?.length
-                      ? editingProduct.images
-                      : editingProduct.image
-                      ? [editingProduct.image]
-                      : []
-                    ).map((imgUrl, idx) => {
-                      const isCover = imgUrl === editingProduct.image;
-                      return (
-                        <div
-                          key={idx}
-                          className={`group relative aspect-square rounded-2xl overflow-hidden border transition-all bg-slate-900 ${
-                            isCover
-                              ? "border-amber-400 ring-2 ring-amber-400/40 shadow-lg shadow-amber-500/15"
-                              : "border-slate-800 hover:border-slate-600"
-                          }`}
+                    <ul className="divide-y divide-border">
+                      {request.items.map((item, index) => (
+                        <li
+                          key={`${item.productId}-${index}`}
+                          className="flex items-start justify-between gap-3 py-2 text-xs"
                         >
-                          <img
-                            src={imgUrl}
-                            alt={`Foto ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              console.warn("No se pudo cargar la imagen:", imgUrl);
-                            }}
-                          />
-
-                          {/* Badge de Portada o Botón para hacer Portada */}
-                          {isCover ? (
-                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-extrabold text-[11px] shadow-md uppercase tracking-wider">
-                              Portada
+                          <span className="min-w-0">
+                            <span className="font-semibold">{item.quantity}x</span> {item.name}
+                            <span className="block text-[11px] text-muted-foreground">
+                              {money(item.unitPrice)} c/u
                             </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleSetCoverImage(imgUrl)}
-                              className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 hover:bg-amber-500 hover:text-slate-950 text-white font-semibold text-[11px] shadow opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                              title="Marcar como foto de portada"
-                            >
-                              Hacer Portada
-                            </button>
-                          )}
-
-                          {/* Botón Eliminar Foto */}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveGalleryImage(idx)}
-                            className="absolute top-2 right-2 w-6 h-6 rounded-lg bg-red-500/90 hover:bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow cursor-pointer"
-                            title="Eliminar esta foto de la galería"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-
-                          <div className="absolute bottom-1 right-2 text-[11px] font-mono text-white/70 drop-shadow">
-                            #{idx + 1}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="border border-dashed border-slate-800 rounded-2xl p-6 text-center text-slate-500 flex flex-col items-center justify-center gap-2 bg-slate-950/40">
-                    <ImageIcon className="w-8 h-8 text-slate-600" />
-                    <p className="text-xs">Aún no has subido fotos para este producto.</p>
-                    <p className="text-[11px] text-slate-600">
-                      Toca el botón "+ Subir Fotos" para elegir una o varias imágenes desde tu dispositivo.
-                    </p>
+                          </span>
+                          <span className="shrink-0 font-semibold">{money(item.lineTotal)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm font-bold">
+                      <span>Total</span>
+                      <span>{money(request.total)}</span>
+                    </div>
                   </div>
                 )}
-
-                {/* Opción manual de URL de foto principal */}
-                <div className="pt-2 border-t border-slate-800/80">
-                  <label className="text-[11px] text-slate-400 block mb-1">
-                    URL de la foto de portada (automática o manual):
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProduct.image}
-                    onChange={(e) => {
-                      const newUrl = e.target.value;
-                      setEditingProduct({
-                        ...editingProduct,
-                        image: newUrl,
-                        images: editingProduct.images?.length
-                          ? [newUrl, ...editingProduct.images.slice(1)]
-                          : [newUrl],
-                      });
-                    }}
-                    placeholder="URL de la imagen o se asignará automáticamente al subir fotos"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Botones de acción modal */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setEditingProduct(null)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {isCreatingNew ? "Publicar Producto" : "Guardar Cambios"}
-                </button>
-              </div>
-            </form>
-          </div>
+              </article>
+            );
+          })}
         </div>
       )}
+    </section>
+  );
+}
 
-      {/* ---------------------------------------------------------------------- */}
-      {/* MODAL DE SINCRONIZACIÓN MULTI-DISPOSITIVO (MÓVIL ↔ COMPUTADOR)          */}
-      {/* ---------------------------------------------------------------------- */}
-      {isSyncModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 sm:p-7 shadow-2xl space-y-6 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-amber-400" />
-                Sincronización Multi-Dispositivo
-              </h3>
-              <button
-                onClick={() => setIsSyncModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
+function QuoteBuilderModal({
+  products,
+  onClose,
+  onRegistered,
+}: {
+  products: Product[];
+  onClose: () => void;
+  onRegistered: (request: RegisteredRequest) => void;
+}) {
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [sellerName, setSellerName] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("solara_seller_display_name") ?? "";
+  });
+  const [search, setSearch] = useState("");
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [isWorking, setIsWorking] = useState<"pdf" | "whatsapp" | null>(null);
+  const [error, setError] = useState("");
 
-            <div className="space-y-4 text-xs">
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-300 leading-relaxed space-y-1.5">
-                <p className="font-bold text-amber-300 flex items-center gap-1.5">
-                  ¿Por qué no salía el artículo creado en el celular al entrar desde el PC?
-                </p>
-                <p className="text-[11px]">
-                  Actualmente la tienda almacena los nuevos artículos en la memoria local (<strong>localStorage</strong>) del navegador de cada dispositivo.
-                  Para transferir tus productos de tu celular a tu computadora (o al revés), usa una de las opciones a continuación:
-                </p>
-              </div>
+  const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
-              {/* Paso 1: Exportar / Compartir desde este dispositivo */}
-              <div className="space-y-2 border border-slate-800 rounded-2xl p-4 bg-slate-950/60">
-                <span className="font-bold text-white text-xs block">
-                  Paso 1: Si estás en el dispositivo con los productos nuevos
-                </span>
-                <p className="text-[11px] text-slate-400">
-                  Copia el código de catálogo o envíatelo a WhatsApp para abrirlo en tu computadora:
-                </p>
+  const results = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return products.slice(0, 5);
+    return products
+      .filter(
+        (product) =>
+          product.name.toLowerCase().includes(term) || product.id.toLowerCase().includes(term),
+      )
+      .slice(0, 6);
+  }, [products, search]);
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleCopySyncCode}
-                    className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <ClipboardCopy className="w-4 h-4 text-amber-400" />
-                    <span>{isCopiedCode ? "¡Código Copiado!" : "Copiar Código"}</span>
-                  </button>
+  const addItem = (product: Product) => {
+    setItems((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: Math.min(99, item.quantity + 1) }
+            : item,
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+  };
 
-                  <button
-                    type="button"
-                    onClick={handleShareToWhatsApp}
-                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span>Enviar a mi WhatsApp</span>
-                  </button>
-                </div>
+  const changeQuantity = (productId: string, delta: number) => {
+    setItems((prev) =>
+      prev
+        .map((item) =>
+          item.product.id === productId
+            ? { ...item, quantity: Math.max(0, Math.min(99, item.quantity + delta)) }
+            : item,
+        )
+        .filter((item) => item.quantity > 0),
+    );
+  };
 
-                <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>También puedes descargar el archivo de respaldo:</span>
-                  <button
-                    type="button"
-                    onClick={handleExportJson}
-                    className="text-amber-400 hover:underline flex items-center gap-1 font-semibold"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Descargar .JSON
-                  </button>
-                </div>
-              </div>
+  const finish = async (mode: "pdf" | "whatsapp") => {
+    if (items.length === 0) {
+      setError("Agrega al menos un producto a la cotización.");
+      return;
+    }
 
-              {/* Paso 2: Importar en el otro dispositivo */}
-              <div className="space-y-2 border border-slate-800 rounded-2xl p-4 bg-slate-950/60">
-                <span className="font-bold text-white text-xs block">
-                  Paso 2: Si estás en la computadora (o dispositivo destino)
-                </span>
-                <p className="text-[11px] text-slate-400">
-                  Pega aquí el código que copiaste o recibiste por WhatsApp y pulsa "Aplicar y Sincronizar":
-                </p>
+    const name = clientName.trim() || "Cliente Particular";
+    const phone = clientPhone.trim();
+    const seller = sellerName.trim();
 
-                <textarea
-                  rows={3}
-                  value={syncCodeInput}
-                  onChange={(e) => setSyncCodeInput(e.target.value)}
-                  placeholder="Pega aquí el código de catálogo o el texto JSON..."
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                />
+    setError("");
+    setIsWorking(mode);
 
-                <button
-                  type="button"
-                  onClick={handleApplySyncCode}
-                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md shadow-amber-500/20"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Aplicar y Sincronizar en este Dispositivo</span>
-                </button>
-              </div>
+    let request: RegisteredRequest | null = null;
+    try {
+      request = await registerRequest({
+        kind: "cotizacion",
+        customerName: name,
+        customerPhone: phone,
+        notes: { sellerName: seller },
+        items: toRequestItems(items),
+      });
+    } catch (err) {
+      setError(`No se pudo registrar la cotización: ${errorMessage(err)}`);
+      setIsWorking(null);
+      return;
+    }
 
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
-                <span className="text-amber-300 font-bold block">💡 ¿Quieres que aparezca para todos sin sincronizar?</span>
-                <p>
-                  Si nos compartes los datos de tu artículo (Nombre, Precio, fotos y descripción), lo dejamos agregado directamente en el archivo base del catálogo (<code>src/data/products.ts</code>). De esa forma queda grabado de fábrica para todos los visitantes del mundo.
-                </p>
-              </div>
-            </div>
+    const finalItems = request ? applyServerPrices(items, request) : items;
+    const finalTotal = request ? request.total : total;
+    const code = request?.code ?? `BORRADOR-${Date.now().toString().slice(-6)}`;
+    const date = new Date().toLocaleDateString("es-PA", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
-            <div className="flex items-center justify-end pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setIsSyncModalOpen(false)}
-                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold cursor-pointer"
-              >
-                Cerrar
-              </button>
-            </div>
+    try {
+      if (mode === "pdf") {
+        await generateQuotationPDF({
+          clientName: name,
+          clientPhone: phone,
+          sellerName: seller,
+          items: finalItems,
+          quoteNumber: code,
+        });
+      } else {
+        const message = buildQuoteMessage({
+          code,
+          date,
+          clientName: name,
+          clientPhone: phone,
+          sellerName: seller,
+          items: finalItems,
+          total: finalTotal,
+        });
+        const target = normalizePhone(phone) || STORE_WHATSAPP;
+        window.open(`https://wa.me/${target}?text=${encodeURIComponent(message)}`, "_blank");
+      }
+
+      toast.success(`Cotización ${code} lista`, {
+        description: request
+          ? "Registrada en el servidor."
+          : "Modo local: no se guardó en la nube.",
+      });
+
+      if (seller) {
+        try {
+          localStorage.setItem("solara_seller_display_name", seller);
+        } catch {
+          // sin almacenamiento disponible
+        }
+      }
+
+      if (request) onRegistered(request);
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setIsWorking(null);
+    }
+  };
+
+  return (
+    <Modal
+      title="Nueva cotización"
+      subtitle="Los precios finales los confirma el servidor."
+      onClose={onClose}
+      wide
+      footer={
+        <>
+          <button
+            type="button"
+            className={BTN_GHOST}
+            onClick={onClose}
+            disabled={isWorking !== null}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className={BTN_GHOST}
+            onClick={() => void finish("whatsapp")}
+            disabled={isWorking !== null || items.length === 0}
+          >
+            {isWorking === "whatsapp" ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Send className="h-4 w-4" aria-hidden="true" />
+            )}
+            Enviar por WhatsApp
+          </button>
+          <button
+            type="button"
+            className={BTN_PRIMARY}
+            onClick={() => void finish("pdf")}
+            disabled={isWorking !== null || items.length === 0}
+          >
+            {isWorking === "pdf" ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <FileText className="h-4 w-4" aria-hidden="true" />
+            )}
+            Generar PDF
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className={LABEL} htmlFor="quote-name">
+              Cliente
+            </label>
+            <input
+              id="quote-name"
+              type="text"
+              value={clientName}
+              onChange={(event) => setClientName(event.target.value)}
+              placeholder="Nombre o empresa"
+              className={INPUT}
+            />
+          </div>
+          <div>
+            <label className={LABEL} htmlFor="quote-phone">
+              Teléfono
+            </label>
+            <input
+              id="quote-phone"
+              type="tel"
+              value={clientPhone}
+              onChange={(event) => setClientPhone(event.target.value)}
+              placeholder="6000-0000"
+              className={INPUT}
+            />
+          </div>
+          <div>
+            <label className={LABEL} htmlFor="quote-seller">
+              Vendedor
+            </label>
+            <input
+              id="quote-seller"
+              type="text"
+              value={sellerName}
+              onChange={(event) => setSellerName(event.target.value)}
+              placeholder="Tu nombre"
+              className={INPUT}
+            />
           </div>
         </div>
-      )}
 
-      {/* ---------------------------------------------------------------------- */}
-      {/* MODAL DE CONEXIÓN A BASE DE DATOS EN LA NUBE (SUPABASE REALTIME)        */}
-      {/* ---------------------------------------------------------------------- */}
-      {isSupabaseModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-6 sm:p-7 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 my-8">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white flex items-center gap-2">
-                    Base de Datos en Tiempo Real
-                    <span className="text-[11px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      Supabase Cloud
+        <div>
+          <label className={LABEL} htmlFor="quote-search">
+            Agregar productos
+          </label>
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <input
+              id="quote-search"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por nombre…"
+              className={`${INPUT} pl-9`}
+            />
+          </div>
+
+          <ul className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-border">
+            {results.length === 0 ? (
+              <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+                Sin resultados
+              </li>
+            ) : (
+              results.map((product) => (
+                <li key={product.id}>
+                  <button
+                    type="button"
+                    onClick={() => addItem(product)}
+                    className="flex w-full items-center justify-between gap-3 border-b border-border px-3 py-2 text-left text-xs transition-colors last:border-0 hover:bg-muted"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{product.name}</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {getDepartmentLabel(product.department)}
+                      </span>
                     </span>
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Actualización instantánea entre tu móvil, computadora y clientes (0 ms)
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsSupabaseModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
+                    <span className="shrink-0 font-semibold">{money(product.price)}</span>
+                    <Plus className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
 
-            {/* Estado actual */}
-            <div
-              className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
-                supabaseConnected
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                  : "bg-amber-500/10 border-amber-500/30 text-amber-300"
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-3 h-3 rounded-full ${
-                    supabaseConnected ? "bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400" : "bg-amber-400"
-                  }`}
-                />
-                <div>
-                  <span className="font-bold block">
-                    {supabaseConnected ? "Base de Datos Conectada en Tiempo Real" : "Modo Local (Sin sincronización automática)"}
+        <div>
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">
+            Productos en la cotización ({items.length})
+          </p>
+
+          {items.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
+              Busca un producto y tócalo para agregarlo.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border rounded-xl border border-border">
+              {items.map((item) => (
+                <li key={item.product.id} className="flex items-center gap-2 px-3 py-2">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-semibold">{item.product.name}</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {money(item.product.price)} c/u
+                    </span>
                   </span>
-                  <span className="text-[11px] text-slate-400">
-                    {supabaseConnected
-                      ? "Los productos y fotos que subas se reflejan al instante en cualquier dispositivo."
-                      : "Los productos creados solo viven en este navegador hasta que conectes Supabase."}
-                  </span>
-                </div>
-              </div>
 
-              {supabaseConnected && (
-                <button
-                  type="button"
-                  onClick={handleDisconnectSupabase}
-                  className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-[11px] font-semibold transition-colors"
-                >
-                  Desconectar
-                </button>
-              )}
-            </div>
-
-            {/* Formulario de credenciales */}
-            <form onSubmit={handleSaveSupabase} className="space-y-4">
-              <div className="space-y-3 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
-                <span className="text-xs font-bold text-white block">Credenciales de tu Proyecto Supabase</span>
-
-                <div>
-                  <label className="text-[11px] font-medium text-slate-300 block mb-1">
-                    Project URL (URL del Proyecto) *
-                  </label>
-                  <input
-                    type="url"
-                    required
-                    value={supabaseUrlInput}
-                    onChange={(e) => setSupabaseUrlInput(e.target.value)}
-                    placeholder="https://abcdefghijklm.supabase.co"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 font-mono focus:outline-none focus:border-emerald-400"
-                  />
-                  <span className="text-[11px] text-slate-500 block mt-1">
-                    La encuentras en Supabase → Project Settings → API → Project URL
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-medium text-slate-300 block mb-1">
-                    Anon Public Key (Clave Pública) *
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={supabaseKeyInput}
-                    onChange={(e) => setSupabaseKeyInput(e.target.value)}
-                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 font-mono focus:outline-none focus:border-emerald-400"
-                  />
-                  <span className="text-[11px] text-slate-500 block mt-1">
-                    La encuentras en Supabase → Project Settings → API → Project API keys → <code>anon public</code>
-                  </span>
-                </div>
-              </div>
-
-              {/* Guía rápida en 3 pasos */}
-              <div className="bg-slate-950/40 border border-slate-800/60 rounded-2xl p-4 space-y-2.5 text-xs text-slate-300">
-                <span className="text-white font-bold block text-xs">¿Cómo crear tu base de datos gratis en 2 minutos?</span>
-                <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-400 leading-relaxed">
-                  <li>
-                    Entra a{" "}
-                    <a
-                      href="https://supabase.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-emerald-400 hover:underline font-semibold inline-flex items-center gap-0.5"
-                    >
-                      supabase.com <ExternalLink className="w-3 h-3" />
-                    </a>{" "}
-                    y crea un proyecto nuevo (Plan Free gratis).
-                  </li>
-                  <li>
-                    En el menú lateral de Supabase, entra a <strong>SQL Editor</strong>, pulsa <strong>New query</strong> y ejecuta nuestro script:
-                  </li>
-                  <div className="pt-1">
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={handleCopySchemaSql}
-                      className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold border border-amber-400/30 flex items-center justify-center gap-2 transition-all cursor-pointer text-xs"
+                      onClick={() => changeQuantity(item.product.id, -1)}
+                      aria-label={`Quitar una unidad de ${item.product.name}`}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-border hover:bg-muted"
                     >
-                      <ClipboardCopy className="w-4 h-4" />
-                      Copiar Script SQL Completo (tablas, fotos, tiempo real y solicitudes)
+                      <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                    <span className="w-7 text-center text-xs font-bold">{item.quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => changeQuantity(item.product.id, 1)}
+                      aria-label={`Agregar una unidad de ${item.product.name}`}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-border hover:bg-muted"
+                    >
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                   </div>
-                  <li className="pt-1">
-                    Ve a <strong>Settings → API</strong>, copia tu URL y anon key, pégalas arriba y presiona "Conectar y Probar".
-                  </li>
-                </ol>
-              </div>
 
-              {/* Botones de acción */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsSupabaseModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
-                >
-                  Cerrar
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={isTestingSupabase}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {isTestingSupabase ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Conectando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Cloud className="w-4 h-4" />
-                      <span>Conectar y Sincronizar en Tiempo Real</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+                  <span className="w-16 shrink-0 text-right text-xs font-bold">
+                    {money(item.product.price * item.quantity)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      )}
-    </div>
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+          >
+            {error}
+          </p>
+        )}
+
+        <div className="flex items-center justify-between rounded-xl bg-muted px-3 py-2.5">
+          <span className="text-xs font-semibold text-muted-foreground">Total estimado</span>
+          <span className="text-base font-bold">{money(total)} USD</span>
+        </div>
+
+        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          Al registrar, el servidor recalcula el total con el precio vigente del catálogo.
+        </p>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Ajustes                                                             */
+/* ------------------------------------------------------------------ */
+
+function SettingsPanel({
+  sellerEmail,
+  productCount,
+  onLogout,
+  onDownloadCatalog,
+}: {
+  sellerEmail: string;
+  productCount: number;
+  onLogout: () => void;
+  onDownloadCatalog: () => void;
+}) {
+  const cloudReady = isSupabaseConfigured();
+  const config = getSupabaseConfig();
+  const envConfig = (import.meta as any).env ?? {};
+  const usesEnvConfig = Boolean(envConfig.VITE_SUPABASE_URL && envConfig.VITE_SUPABASE_ANON_KEY);
+
+  return (
+    <section aria-label="Ajustes" className="space-y-3">
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-3 text-sm font-bold">Cuenta</h2>
+        <dl className="space-y-2 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">Correo</dt>
+            <dd className="truncate font-semibold">{sellerEmail}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">Rol</dt>
+            <dd className="inline-flex items-center gap-1.5 font-semibold text-primary">
+              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              Vendedor autorizado
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">Productos en el catálogo</dt>
+            <dd className="font-semibold">{productCount}</dd>
+          </div>
+        </dl>
+        <button type="button" onClick={onLogout} className={`${BTN_GHOST} mt-4 w-full`}>
+          <LogOut className="h-4 w-4" aria-hidden="true" />
+          Cerrar sesión
+        </button>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold">Conexión con la nube</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {cloudReady ? "Supabase conectado" : "Supabase sin configurar"}
+            </p>
+          </div>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+              cloudReady
+                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300"
+                : "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200"
+            }`}
+          >
+            {cloudReady ? (
+              <Cloud className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <CloudOff className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            {cloudReady ? "En línea" : "Local"}
+          </span>
+        </div>
+
+        {config && (
+          <p className="mt-3 truncate rounded-xl bg-muted px-3 py-2 font-mono text-[11px] text-muted-foreground">
+            {config.url}
+          </p>
+        )}
+
+        {usesEnvConfig ? (
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+            Las credenciales vienen de las variables de entorno del despliegue. Para cambiarlas,
+            edita <code className="font-mono">VITE_SUPABASE_URL</code> y{" "}
+            <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>.
+          </p>
+        ) : (
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">
+              Cambiar credenciales
+            </summary>
+            <div className="mt-3">
+              <CloudConfigForm />
+            </div>
+          </details>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="text-sm font-bold">Copia de seguridad</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Descarga el catálogo actual en un archivo JSON.
+        </p>
+        <button type="button" onClick={onDownloadCatalog} className={`${BTN_GHOST} mt-3 w-full`}>
+          <Download className="h-4 w-4" aria-hidden="true" />
+          Descargar catálogo
+        </button>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-1 flex items-center gap-1.5 text-sm font-bold">
+          <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+          Permisos
+        </h2>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Solo las cuentas registradas como vendedoras pueden cambiar precios, editar productos y
+          leer las cotizaciones. Los visitantes de la tienda solo pueden consultar el catálogo.
+        </p>
+        {!isCloudAuthAvailable() && (
+          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+            Sin Supabase configurado, el panel funciona en modo local y los cambios no se guardan en
+            la nube.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }

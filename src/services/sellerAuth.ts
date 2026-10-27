@@ -18,6 +18,11 @@ export interface SellerSession {
   email: string | null;
 }
 
+export type SellerAccess =
+  | { status: "seller"; userId: string; email: string | null }
+  | { status: "not_seller" }
+  | { status: "unavailable"; message: string };
+
 function toSession(user: { id: string; email?: string | null } | null | undefined): SellerSession | null {
   if (!user) return null;
   return { userId: user.id, email: user.email ?? null };
@@ -90,6 +95,47 @@ export async function signInSeller(
     return { session: toSession(data.user) };
   } catch {
     return { session: null, error: "Error de conexión. Revisa tu internet e inténtalo de nuevo." };
+  }
+}
+
+/**
+ * Comprueba si la sesión activa pertenece a un vendedor autorizado.
+ *
+ * Estar autenticado NO basta: la fila en `public.sellers` es la que habilita
+ * las políticas RLS de escritura. Sin esa fila el panel queda bloqueado y,
+ * aunque alguien llame a la API por fuera, Postgres rechaza el cambio.
+ */
+export async function getSellerProfile(session: SellerSession | null): Promise<SellerAccess> {
+  const supabase = getSupabase();
+  if (!supabase || !session) return { status: "not_seller" };
+
+  try {
+    const { data, error } = await supabase
+      .from("sellers")
+      .select("user_id, email")
+      .eq("user_id", session.userId)
+      .maybeSingle();
+
+    if (error) {
+      const message = error.message ?? "";
+      if (/does not exist|could not find the table|schema cache/i.test(message)) {
+        return {
+          status: "unavailable",
+          message: "Falta crear la tabla de vendedores. Ejecuta supabase-schema.sql en Supabase.",
+        };
+      }
+      return { status: "unavailable", message: "No se pudo verificar tu cuenta de vendedor." };
+    }
+
+    if (!data) return { status: "not_seller" };
+
+    return {
+      status: "seller",
+      userId: session.userId,
+      email: (data.email as string | null) ?? session.email,
+    };
+  } catch {
+    return { status: "unavailable", message: "No se pudo verificar tu cuenta de vendedor." };
   }
 }
 

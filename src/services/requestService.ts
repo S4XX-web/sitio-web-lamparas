@@ -80,6 +80,31 @@ export function applyServerPrices(items: CartItem[], request: RegisteredRequest)
   });
 }
 
+/**
+ * Convierte una solicitud ya registrada en ítems de carrito para volver a
+ * generar su PDF con los precios que quedaron guardados en el servidor.
+ */
+export function requestToCartItems(request: RegisteredRequest): CartItem[] {
+  return request.items.map((item) => ({
+    product: {
+      id: item.productId,
+      name: item.name,
+      tagline: "",
+      category: "farolas",
+      price: item.unitPrice,
+      originalPrice: item.unitPrice,
+      rating: 5,
+      reviewsCount: 0,
+      image: "",
+      images: [],
+      inStock: item.inStock ?? true,
+      description: "",
+      features: [],
+    },
+    quantity: item.quantity,
+  }));
+}
+
 function isMissingFunction(error: { code?: string; message?: string }): boolean {
   if (error.code === "PGRST202") return true;
   const message = error.message ?? "";

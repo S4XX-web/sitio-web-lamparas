@@ -7,6 +7,39 @@ const STORAGE_CATALOG_KEY = "solara_seller_catalog_v2";
 const CATALOG_CHANGE_EVENT = "solara:catalog_changed";
 
 /**
+ * Error de escritura contra la nube. Se lanza para que el panel pueda mostrar
+ * el motivo real (permiso, sesión vencida, red) en vez de un éxito falso.
+ */
+export class CatalogWriteError extends Error {
+  readonly code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "CatalogWriteError";
+    if (code) this.code = code;
+  }
+}
+
+function toWriteError(error: { message?: string; code?: string }): CatalogWriteError {
+  const message = error.message ?? "";
+  const code = error.code;
+
+  if (code === "42501" || /row-level security|permission denied|violates row-level/i.test(message)) {
+    return new CatalogWriteError(
+      "Tu cuenta no tiene permiso para modificar el catálogo. Pide que te agreguen como vendedor.",
+      code,
+    );
+  }
+  if (/jwt|token|expired|invalid claim/i.test(message)) {
+    return new CatalogWriteError("Tu sesión venció. Cierra sesión y vuelve a entrar.", code);
+  }
+  if (/failed to fetch|network|load failed/i.test(message)) {
+    return new CatalogWriteError("Sin conexión con la nube. Revisa tu internet e inténtalo de nuevo.", code);
+  }
+  return new CatalogWriteError(message || "No se pudo guardar el cambio en la nube.", code);
+}
+
+/**
  * Convierte un objeto Product al formato de fila de base de datos Supabase
  */
 export function productToSupabaseRow(p: Product) {
@@ -149,23 +182,22 @@ export async function addProductToCatalog(product: Product): Promise<Product[]> 
     id: finalId,
   };
 
-  const updated = [newProd, ...current];
-  saveCatalog(updated, true);
-
-  // Si Supabase está conectado, guardar en la nube
+  // La nube manda: si el guardado remoto falla, NO tocamos la caché local
+  // para que el panel nunca muestre un producto que no existe en el servidor.
   const supabase = getSupabase();
   if (supabase) {
-    try {
-      const row = productToSupabaseRow(newProd);
-      const { error } = await supabase.from("products").upsert(row);
-      if (error) {
-        console.error("Error guardando producto en Supabase:", error.message);
-      }
-    } catch (err) {
-      console.error("Error al sincronizar nuevo producto con la nube:", err);
+    const row = productToSupabaseRow(newProd);
+    const { data, error } = await supabase.from("products").upsert(row).select("id");
+    if (error) throw toWriteError(error);
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new CatalogWriteError(
+        "La nube no confirmó el guardado. Vuelve a iniciar sesión como vendedor.",
+      );
     }
   }
 
+  const updated = [newProd, ...current];
+  saveCatalog(updated, true);
   return updated;
 }
 
@@ -184,22 +216,25 @@ export async function updateProductInCatalog(id: string, updates: Partial<Produc
     return prod;
   });
 
-  saveCatalog(updated, true);
+  if (!updatedProd) {
+    throw new CatalogWriteError("Ese producto ya no existe en el catálogo. Actualiza la página.");
+  }
 
-  // Si Supabase está conectado, actualizar en la nube
+  // Escritura remota primero. `.select("id")` confirma que RLS permitió el
+  // cambio; si devuelve 0 filas, el update no tocó nada (producto borrado).
   const supabase = getSupabase();
-  if (supabase && updatedProd) {
-    try {
-      const row = productToSupabaseRow(updatedProd);
-      const { error } = await supabase.from("products").update(row).eq("id", id);
-      if (error) {
-        console.error("Error actualizando en Supabase:", error.message);
-      }
-    } catch (err) {
-      console.error("Error al sincronizar cambios con Supabase:", err);
+  if (supabase) {
+    const row = productToSupabaseRow(updatedProd);
+    const { data, error } = await supabase.from("products").update(row).eq("id", id).select("id");
+    if (error) throw toWriteError(error);
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new CatalogWriteError(
+        "El servidor no encontró ese producto. Actualiza la página e inténtalo de nuevo.",
+      );
     }
   }
 
+  saveCatalog(updated, true);
   return updated;
 }
 
@@ -209,20 +244,19 @@ export async function updateProductInCatalog(id: string, updates: Partial<Produc
 export async function deleteProductFromCatalog(id: string): Promise<Product[]> {
   const current = getLiveCatalog();
   const updated = current.filter((p) => p.id !== id);
-  saveCatalog(updated, true);
 
   const supabase = getSupabase();
   if (supabase) {
-    try {
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (error) {
-        console.error("Error eliminando en Supabase:", error.message);
-      }
-    } catch (err) {
-      console.error("Error al eliminar en Supabase:", err);
+    const { data, error } = await supabase.from("products").delete().eq("id", id).select("id");
+    if (error) throw toWriteError(error);
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new CatalogWriteError(
+        "El servidor no encontró ese producto (puede que ya estuviera borrado).",
+      );
     }
   }
 
+  saveCatalog(updated, true);
   return updated;
 }
 
