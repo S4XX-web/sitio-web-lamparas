@@ -1892,7 +1892,7 @@ function RequestsPanel({
                                     <span className="font-semibold text-foreground">
                                       {money(item.unitPrice)}
                                     </span>{" "}
-                                    c/u · negociado
+                                    c/u
                                   </>
                                 ) : (
                                   `${money(item.unitPrice)} c/u`
@@ -2157,7 +2157,7 @@ function QuoteBuilderModal({
         if (ignoredPrices.length > 0) {
           toast.warning("El servidor usó el precio del catálogo", {
             description:
-              "Falta ejecutar el SQL actualizado de create_request en Supabase para guardar precios negociados.",
+              "Falta ejecutar el SQL actualizado de create_request en Supabase para guardar precios personalizados.",
           });
         }
       }
@@ -2341,7 +2341,7 @@ function QuoteBuilderModal({
                               <span className="font-semibold text-foreground">
                                 {money(unit.price)}
                               </span>{" "}
-                              c/u · negociado
+                              c/u
                             </>
                           ) : (
                             `${money(unit.price)} c/u`
@@ -2448,9 +2448,7 @@ function QuoteBuilderModal({
         )}
 
         <div className="flex items-center justify-between rounded-xl bg-muted px-3 py-2.5">
-          <span className="text-xs font-semibold text-muted-foreground">
-            Total {customCount > 0 ? "con precios negociados" : "estimado"}
-          </span>
+          <span className="text-xs font-semibold text-muted-foreground">Total estimado</span>
           <span className="text-base font-bold">{money(total)} USD</span>
         </div>
 
