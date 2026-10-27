@@ -1727,8 +1727,9 @@ function RequestsPanel({
       items: requestToCartItems(request),
       total: request.total,
     });
-    const target = normalizePhone(request.customerPhone) || STORE_WHATSAPP;
-    window.open(`https://wa.me/${target}?text=${encodeURIComponent(message)}`, "_blank");
+    // El botón del panel abre siempre el WhatsApp de la tienda (6989-3055);
+    // el teléfono del cliente va dentro del mensaje para reenviarlo.
+    window.open(`https://wa.me/${STORE_WHATSAPP}?text=${encodeURIComponent(message)}`, "_blank");
   };
 
   return (
@@ -2182,7 +2183,7 @@ function QuoteBuilderModal({
   return (
     <Modal
       title="Nueva cotización"
-      subtitle="Ajusta cantidades y precios; el servidor confirma el total."
+      subtitle="Toca el precio de cada línea para ajustarlo. El servidor confirma el total."
       onClose={onClose}
       wide
       footer={

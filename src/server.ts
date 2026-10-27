@@ -100,7 +100,16 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
+      const finalResponse = withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
+
+      // El panel se actualiza seguido: evita que el navegador guarde una
+      // versión vieja del HTML (y con ella un bundle antiguo).
+      if (new URL(request.url).pathname.startsWith("/admin")) {
+        finalResponse.headers.set("Cache-Control", "no-store, max-age=0");
+        finalResponse.headers.set("CDN-Cache-Control", "no-store");
+      }
+
+      return finalResponse;
     } catch (error) {
       console.error(error);
       return withSecurityHeaders(
