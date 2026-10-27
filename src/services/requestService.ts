@@ -16,6 +16,11 @@ export type RequestKind = "cotizacion" | "pedido";
 export interface RequestItemInput {
   productId: string;
   quantity: number;
+  /**
+   * Precio negociado. Solo se aplica si quien registra la solicitud es un
+   * vendedor autenticado; para el resto el servidor usa el precio del catálogo.
+   */
+  unitPrice?: number;
 }
 
 export interface RegisteredRequestItem {
@@ -25,6 +30,8 @@ export interface RegisteredRequestItem {
   quantity: number;
   lineTotal: number;
   inStock?: boolean;
+  /** Precio de catálogo, para comparar con un precio negociado. */
+  catalogPrice?: number;
 }
 
 export interface RegisteredRequest {
@@ -115,6 +122,7 @@ interface RawRequestItem {
   productId?: string;
   name?: string;
   unitPrice?: number | string;
+  catalogPrice?: number | string;
   quantity?: number | string;
   lineTotal?: number | string;
   inStock?: boolean;
@@ -154,6 +162,9 @@ function mapItems(raw: RawRequestItem[] | undefined): RegisteredRequestItem[] {
       lineTotal: Number(item.lineTotal ?? 0),
     };
     if (typeof item.inStock === "boolean") mapped.inStock = item.inStock;
+    if (item.catalogPrice !== undefined && item.catalogPrice !== null) {
+      mapped.catalogPrice = Number(item.catalogPrice);
+    }
     return mapped;
   });
 }

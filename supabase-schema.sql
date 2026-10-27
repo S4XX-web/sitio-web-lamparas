@@ -256,6 +256,9 @@ DECLARE
   v_prod record;
   v_qty int;
   v_unit numeric(12,2);
+  v_is_seller boolean := EXISTS (
+    SELECT 1 FROM public.sellers s WHERE s.user_id = auth.uid()
+  );
   v_subtotal numeric(12,2) := 0;
   v_out_items jsonb := '[]'::jsonb;
   v_code text;
@@ -293,12 +296,23 @@ BEGIN
     END IF;
 
     v_unit := ROUND(v_prod.price::numeric, 2);
+
+    -- Precio negociado: SOLO un vendedor autenticado (fila en public.sellers)
+    -- puede ajustar el precio de una línea. Para clientes y visitantes el
+    -- campo `unitPrice` se ignora por completo.
+    IF v_is_seller AND jsonb_typeof(v_item->'unitPrice') = 'number' THEN
+      IF (v_item->>'unitPrice')::numeric BETWEEN 0.01 AND 100000 THEN
+        v_unit := ROUND((v_item->>'unitPrice')::numeric, 2);
+      END IF;
+    END IF;
+
     v_subtotal := v_subtotal + (v_unit * v_qty);
 
     v_out_items := v_out_items || jsonb_build_object(
       'productId', v_prod.id,
       'name', v_prod.name,
       'unitPrice', v_unit,
+      'catalogPrice', ROUND(v_prod.price::numeric, 2),
       'quantity', v_qty,
       'lineTotal', ROUND(v_unit * v_qty, 2),
       'inStock', v_prod.in_stock

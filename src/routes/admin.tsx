@@ -24,6 +24,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   Save,
   Search,
   Send,
@@ -50,7 +51,6 @@ import {
   listRequests,
   registerRequest,
   requestToCartItems,
-  toRequestItems,
   type RegisteredRequest,
   type RequestSummary,
 } from "../services/requestService";
@@ -108,6 +108,11 @@ interface EditorState {
 
 function money(value: number): string {
   return `$${value.toFixed(2)}`;
+}
+
+/** Redondea a centavos para evitar arrastrar decimales binarios. */
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 /** Acepta "12,50" y "12.50". Devuelve NaN si no hay número. */
@@ -473,6 +478,13 @@ function AdminPage() {
       toast.error("No se pudo guardar el precio", { description: errorMessage(err) });
     } finally {
       setSavingPriceId(null);
+    }
+  };
+
+  const saveQuotePricesToCatalog = async (updates: Array<{ product: Product; price: number }>) => {
+    for (const { product, price } of updates) {
+      const originalPrice = product.originalPrice >= price ? product.originalPrice : price;
+      await updateProduct(product.id, { price, originalPrice });
     }
   };
 
@@ -989,6 +1001,7 @@ function AdminPage() {
         <QuoteBuilderModal
           products={products}
           onClose={() => setIsQuoteBuilderOpen(false)}
+          onSaveCatalogPrices={saveQuotePricesToCatalog}
           onRegistered={() => {
             void loadRequests();
             setTab("cotizaciones");
@@ -1859,20 +1872,37 @@ function RequestsPanel({
                       </p>
                     )}
                     <ul className="divide-y divide-border">
-                      {request.items.map((item, index) => (
-                        <li
-                          key={`${item.productId}-${index}`}
-                          className="flex items-start justify-between gap-3 py-2 text-xs"
-                        >
-                          <span className="min-w-0">
-                            <span className="font-semibold">{item.quantity}x</span> {item.name}
-                            <span className="block text-[11px] text-muted-foreground">
-                              {money(item.unitPrice)} c/u
+                      {request.items.map((item, index) => {
+                        const catalogPrice = item.catalogPrice;
+                        const negotiated =
+                          catalogPrice !== undefined &&
+                          Math.abs(catalogPrice - item.unitPrice) >= 0.01;
+
+                        return (
+                          <li
+                            key={`${item.productId}-${index}`}
+                            className="flex items-start justify-between gap-3 py-2 text-xs"
+                          >
+                            <span className="min-w-0">
+                              <span className="font-semibold">{item.quantity}x</span> {item.name}
+                              <span className="block text-[11px] text-muted-foreground">
+                                {negotiated && catalogPrice !== undefined ? (
+                                  <>
+                                    <span className="line-through">{money(catalogPrice)}</span>{" "}
+                                    <span className="font-semibold text-foreground">
+                                      {money(item.unitPrice)}
+                                    </span>{" "}
+                                    c/u · negociado
+                                  </>
+                                ) : (
+                                  `${money(item.unitPrice)} c/u`
+                                )}
+                              </span>
                             </span>
-                          </span>
-                          <span className="shrink-0 font-semibold">{money(item.lineTotal)}</span>
-                        </li>
-                      ))}
+                            <span className="shrink-0 font-semibold">{money(item.lineTotal)}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                     <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm font-bold">
                       <span>Total</span>
@@ -1893,10 +1923,12 @@ function QuoteBuilderModal({
   products,
   onClose,
   onRegistered,
+  onSaveCatalogPrices,
 }: {
   products: Product[];
   onClose: () => void;
   onRegistered: (request: RegisteredRequest) => void;
+  onSaveCatalogPrices: (updates: Array<{ product: Product; price: number }>) => Promise<void>;
 }) {
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -1905,11 +1937,52 @@ function QuoteBuilderModal({
     return localStorage.getItem("solara_seller_display_name") ?? "";
   });
   const [search, setSearch] = useState("");
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [lines, setLines] = useState<Array<{ productId: string; quantity: number }>>([]);
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
   const [isWorking, setIsWorking] = useState<"pdf" | "whatsapp" | null>(null);
+  const [isSavingCatalog, setIsSavingCatalog] = useState(false);
   const [error, setError] = useState("");
 
-  const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const productsById = useMemo(
+    () => new Map(products.map((product) => [product.id, product])),
+    [products],
+  );
+
+  const rows = useMemo(
+    () =>
+      lines.flatMap((line) => {
+        const product = productsById.get(line.productId);
+        return product ? [{ product, quantity: line.quantity }] : [];
+      }),
+    [lines, productsById],
+  );
+
+  /**
+   * Precio de la línea: el que escribió el vendedor o, si dejó el campo vacío,
+   * el del catálogo. `custom` indica que hay precio negociado.
+   */
+  const priceState = useCallback(
+    (product: Product): { price: number; custom: boolean; invalid: boolean } => {
+      const catalogPrice = roundMoney(product.price);
+      const raw = priceInputs[product.id];
+      if (raw === undefined || raw.trim() === "") {
+        return { price: catalogPrice, custom: false, invalid: false };
+      }
+      const parsed = parseMoney(raw);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return { price: catalogPrice, custom: false, invalid: true };
+      }
+      const price = roundMoney(parsed);
+      return { price, custom: Math.abs(price - catalogPrice) >= 0.01, invalid: false };
+    },
+    [priceInputs],
+  );
+
+  const customCount = rows.filter((row) => priceState(row.product).custom).length;
+
+  const total = roundMoney(
+    rows.reduce((sum, row) => sum + priceState(row.product).price * row.quantity, 0),
+  );
 
   const results = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -1923,34 +1996,80 @@ function QuoteBuilderModal({
   }, [products, search]);
 
   const addItem = (product: Product) => {
-    setItems((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
+    setLines((prev) => {
+      const existing = prev.find((line) => line.productId === product.id);
       if (existing) {
-        return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: Math.min(99, item.quantity + 1) }
-            : item,
+        return prev.map((line) =>
+          line.productId === product.id
+            ? { ...line, quantity: Math.min(99, line.quantity + 1) }
+            : line,
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { productId: product.id, quantity: 1 }];
     });
   };
 
   const changeQuantity = (productId: string, delta: number) => {
-    setItems((prev) =>
+    setLines((prev) =>
       prev
-        .map((item) =>
-          item.product.id === productId
-            ? { ...item, quantity: Math.max(0, Math.min(99, item.quantity + delta)) }
-            : item,
+        .map((line) =>
+          line.productId === productId
+            ? { ...line, quantity: Math.max(0, Math.min(99, line.quantity + delta)) }
+            : line,
         )
-        .filter((item) => item.quantity > 0),
+        .filter((line) => line.quantity > 0),
     );
   };
 
+  const setLinePrice = (productId: string, value: string) => {
+    setError("");
+    setPriceInputs((prev) => ({ ...prev, [productId]: value }));
+  };
+
+  const resetLinePrice = (productId: string) => {
+    setPriceInputs((prev) => {
+      if (!(productId in prev)) return prev;
+      const copy = { ...prev };
+      delete copy[productId];
+      return copy;
+    });
+  };
+
+  const savePricesToCatalog = async () => {
+    const updates = rows.flatMap(({ product }) => {
+      const unit = priceState(product);
+      return unit.custom ? [{ product, price: unit.price }] : [];
+    });
+
+    if (updates.length === 0) return;
+
+    setIsSavingCatalog(true);
+    try {
+      await onSaveCatalogPrices(updates);
+      setPriceInputs((prev) => {
+        const copy = { ...prev };
+        for (const update of updates) delete copy[update.product.id];
+        return copy;
+      });
+      toast.success("Precios guardados en el catálogo", {
+        description: `${updates.length} producto(s) actualizado(s).`,
+      });
+    } catch (err) {
+      toast.error("No se pudieron guardar los precios", { description: errorMessage(err) });
+    } finally {
+      setIsSavingCatalog(false);
+    }
+  };
+
   const finish = async (mode: "pdf" | "whatsapp") => {
-    if (items.length === 0) {
+    if (rows.length === 0) {
       setError("Agrega al menos un producto a la cotización.");
+      return;
+    }
+
+    const invalidRow = rows.find((row) => priceState(row.product).invalid);
+    if (invalidRow) {
+      setError(`Precio inválido en "${invalidRow.product.name}". Escribe un número mayor que 0.`);
       return;
     }
 
@@ -1961,6 +2080,19 @@ function QuoteBuilderModal({
     setError("");
     setIsWorking(mode);
 
+    const pricedRows = rows.map((row) => ({ ...row, unit: priceState(row.product) }));
+    const cartItems: CartItem[] = pricedRows.map(({ product, quantity, unit }) => ({
+      product: { ...product, price: unit.price },
+      quantity,
+    }));
+    // Solo se envía `unitPrice` cuando hay precio negociado. El servidor lo
+    // aplica únicamente si quien cotiza está registrado en public.sellers.
+    const requestItems = pricedRows.map(({ product, quantity, unit }) =>
+      unit.custom
+        ? { productId: product.id, quantity, unitPrice: unit.price }
+        : { productId: product.id, quantity },
+    );
+
     let request: RegisteredRequest | null = null;
     try {
       request = await registerRequest({
@@ -1968,7 +2100,7 @@ function QuoteBuilderModal({
         customerName: name,
         customerPhone: phone,
         notes: { sellerName: seller },
-        items: toRequestItems(items),
+        items: requestItems,
       });
     } catch (err) {
       setError(`No se pudo registrar la cotización: ${errorMessage(err)}`);
@@ -1976,8 +2108,9 @@ function QuoteBuilderModal({
       return;
     }
 
-    const finalItems = request ? applyServerPrices(items, request) : items;
-    const finalTotal = request ? request.total : total;
+    const registered = request;
+    const finalItems = registered ? applyServerPrices(cartItems, registered) : cartItems;
+    const finalTotal = registered ? registered.total : total;
     const code = request?.code ?? `BORRADOR-${Date.now().toString().slice(-6)}`;
     const date = new Date().toLocaleDateString("es-PA", {
       year: "numeric",
@@ -2009,10 +2142,25 @@ function QuoteBuilderModal({
       }
 
       toast.success(`Cotización ${code} lista`, {
-        description: request
+        description: registered
           ? "Registrada en el servidor."
           : "Modo local: no se guardó en la nube.",
       });
+
+      if (registered) {
+        const ignoredPrices = pricedRows.filter(({ product, unit }) => {
+          if (!unit.custom) return false;
+          const saved = registered.items.find((item) => item.productId === product.id);
+          return saved ? Math.abs(saved.unitPrice - unit.price) >= 0.01 : false;
+        });
+
+        if (ignoredPrices.length > 0) {
+          toast.warning("El servidor usó el precio del catálogo", {
+            description:
+              "Falta ejecutar el SQL actualizado de create_request en Supabase para guardar precios negociados.",
+          });
+        }
+      }
 
       if (seller) {
         try {
@@ -2022,7 +2170,7 @@ function QuoteBuilderModal({
         }
       }
 
-      if (request) onRegistered(request);
+      if (registered) onRegistered(registered);
       onClose();
     } catch (err) {
       setError(errorMessage(err));
@@ -2034,7 +2182,7 @@ function QuoteBuilderModal({
   return (
     <Modal
       title="Nueva cotización"
-      subtitle="Los precios finales los confirma el servidor."
+      subtitle="Ajusta cantidades y precios; el servidor confirma el total."
       onClose={onClose}
       wide
       footer={
@@ -2051,7 +2199,7 @@ function QuoteBuilderModal({
             type="button"
             className={BTN_GHOST}
             onClick={() => void finish("whatsapp")}
-            disabled={isWorking !== null || items.length === 0}
+            disabled={isWorking !== null || isSavingCatalog || rows.length === 0}
           >
             {isWorking === "whatsapp" ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -2064,7 +2212,7 @@ function QuoteBuilderModal({
             type="button"
             className={BTN_PRIMARY}
             onClick={() => void finish("pdf")}
-            disabled={isWorking !== null || items.length === 0}
+            disabled={isWorking !== null || isSavingCatalog || rows.length === 0}
           >
             {isWorking === "pdf" ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -2168,49 +2316,108 @@ function QuoteBuilderModal({
 
         <div>
           <p className="mb-2 text-xs font-semibold text-muted-foreground">
-            Productos en la cotización ({items.length})
+            Productos en la cotización ({rows.length})
           </p>
 
-          {items.length === 0 ? (
+          {rows.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
               Busca un producto y tócalo para agregarlo.
             </p>
           ) : (
             <ul className="divide-y divide-border rounded-xl border border-border">
-              {items.map((item) => (
-                <li key={item.product.id} className="flex items-center gap-2 px-3 py-2">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-semibold">{item.product.name}</span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {money(item.product.price)} c/u
-                    </span>
-                  </span>
+              {rows.map(({ product, quantity }) => {
+                const unit = priceState(product);
+                const catalogPrice = roundMoney(product.price);
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => changeQuantity(item.product.id, -1)}
-                      aria-label={`Quitar una unidad de ${item.product.name}`}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-border hover:bg-muted"
-                    >
-                      <Minus className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
-                    <span className="w-7 text-center text-xs font-bold">{item.quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => changeQuantity(item.product.id, 1)}
-                      aria-label={`Agregar una unidad de ${item.product.name}`}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-border hover:bg-muted"
-                    >
-                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
-                  </div>
+                return (
+                  <li key={product.id} className="px-3 py-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold">{product.name}</span>
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          {unit.custom ? (
+                            <>
+                              <span className="line-through">{money(catalogPrice)}</span>{" "}
+                              <span className="font-semibold text-foreground">
+                                {money(unit.price)}
+                              </span>{" "}
+                              c/u · negociado
+                            </>
+                          ) : (
+                            `${money(unit.price)} c/u`
+                          )}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs font-bold">
+                        {money(unit.price * quantity)}
+                      </span>
+                    </div>
 
-                  <span className="w-16 shrink-0 text-right text-xs font-bold">
-                    {money(item.product.price * item.quantity)}
-                  </span>
-                </li>
-              ))}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <div
+                        className={`flex h-11 items-center gap-1 rounded-xl border bg-background px-2 ${
+                          unit.invalid ? "border-red-400" : "border-border"
+                        }`}
+                      >
+                        <span
+                          className="text-[11px] font-semibold text-muted-foreground"
+                          aria-hidden="true"
+                        >
+                          $
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={priceInputs[product.id] ?? ""}
+                          onChange={(event) => setLinePrice(product.id, event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") event.currentTarget.blur();
+                          }}
+                          placeholder={catalogPrice.toFixed(2)}
+                          aria-label={`Precio unitario de ${product.name}`}
+                          aria-invalid={unit.invalid}
+                          className={`h-9 w-20 bg-transparent text-xs font-semibold text-foreground outline-none ${
+                            unit.invalid ? "text-red-700 dark:text-red-300" : ""
+                          }`}
+                        />
+                        <span className="text-[10px] text-muted-foreground">c/u</span>
+                      </div>
+
+                      {unit.custom && (
+                        <button
+                          type="button"
+                          onClick={() => resetLinePrice(product.id)}
+                          aria-label={`Restaurar precio de catálogo de ${product.name}`}
+                          className="inline-flex h-11 items-center gap-1 rounded-xl px-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                          Restaurar
+                        </button>
+                      )}
+
+                      <div className="ml-auto flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => changeQuantity(product.id, -1)}
+                          aria-label={`Quitar una unidad de ${product.name}`}
+                          className="flex h-11 w-11 items-center justify-center rounded-lg border border-border hover:bg-muted"
+                        >
+                          <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                        <span className="w-7 text-center text-xs font-bold">{quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => changeQuantity(product.id, 1)}
+                          aria-label={`Agregar una unidad de ${product.name}`}
+                          className="flex h-11 w-11 items-center justify-center rounded-lg border border-border hover:bg-muted"
+                        >
+                          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -2224,14 +2431,33 @@ function QuoteBuilderModal({
           </p>
         )}
 
+        {customCount > 0 && (
+          <button
+            type="button"
+            onClick={() => void savePricesToCatalog()}
+            disabled={isWorking !== null || isSavingCatalog}
+            className={`${BTN_GHOST} w-full text-xs`}
+          >
+            {isSavingCatalog ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Save className="h-4 w-4" aria-hidden="true" />
+            )}
+            Guardar estos precios en el catálogo
+          </button>
+        )}
+
         <div className="flex items-center justify-between rounded-xl bg-muted px-3 py-2.5">
-          <span className="text-xs font-semibold text-muted-foreground">Total estimado</span>
+          <span className="text-xs font-semibold text-muted-foreground">
+            Total {customCount > 0 ? "con precios negociados" : "estimado"}
+          </span>
           <span className="text-base font-bold">{money(total)} USD</span>
         </div>
 
         <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          Al registrar, el servidor recalcula el total con el precio vigente del catálogo.
+          Los precios que edites quedan guardados en esta cotización. El catálogo solo cambia si
+          usas “Guardar estos precios en el catálogo”.
         </p>
       </div>
     </Modal>

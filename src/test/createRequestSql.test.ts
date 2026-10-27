@@ -25,10 +25,19 @@ type CreateRequestResult = {
     productId: string;
     name: string;
     unitPrice: number;
+    catalogPrice?: number;
     quantity: number;
     lineTotal: number;
   }>;
 };
+
+const SELLER_ID = "11111111-1111-1111-1111-111111111111";
+const OTHER_USER_ID = "22222222-2222-2222-2222-222222222222";
+
+/** Simula el usuario autenticado que devuelve auth.uid(). */
+async function asUser(userId: string | null): Promise<void> {
+  await db.query("select set_config('test.uid', $1, false)", [userId ?? ""]);
+}
 
 async function createRequest(payload: unknown): Promise<CreateRequestResult> {
   const res = await db.query<{ result: CreateRequestResult }>(
@@ -46,7 +55,9 @@ beforeAll(async () => {
   // Stubs mínimos de Supabase (auth.uid y roles) para poder aplicar la sección 9.
   await db.exec(`
     create schema if not exists auth;
-    create or replace function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+    create or replace function auth.uid() returns uuid language sql stable as $$
+      select nullif(current_setting('test.uid', true), '')::uuid
+    $$;
     create role anon;
     create role authenticated;
 
@@ -65,6 +76,9 @@ beforeAll(async () => {
     insert into public.products (id, name, price, in_stock) values
       ('lampara-solar-1200w', 'Farola 1200W', 55.00, true),
       ('proyector-300w', 'Proyector 300W', 40.00, false);
+
+    insert into public.sellers (user_id, email) values
+      ('${SELLER_ID}', 'vendedor@test.com');
   `);
 
   await db.exec(requestsSql);
@@ -93,9 +107,79 @@ describe("public.create_request", () => {
     expect(result.code).toMatch(/^COT-\d{8}-\d{4}$/);
     expect(result.kind).toBe("cotizacion");
     expect(result.items[0]?.unitPrice).toBe(55);
+    expect(result.items[0]?.catalogPrice).toBe(55);
     expect(result.items[0]?.lineTotal).toBe(110);
     expect(result.subtotal).toBe(110);
     expect(result.total).toBe(110);
+  });
+
+  it("aplica el precio negociado cuando quien cotiza es vendedor", async () => {
+    await asUser(SELLER_ID);
+    try {
+      const result = await createRequest({
+        kind: "cotizacion",
+        customerName: "Cliente con descuento",
+        items: [
+          { productId: "lampara-solar-1200w", quantity: 2, unitPrice: 47.5 },
+          { productId: "proyector-300w", quantity: 1 },
+        ],
+      });
+
+      expect(result.items[0]?.unitPrice).toBe(47.5);
+      expect(result.items[0]?.catalogPrice).toBe(55);
+      expect(result.items[0]?.lineTotal).toBe(95);
+      expect(result.items[1]?.unitPrice).toBe(40);
+      expect(result.total).toBe(135);
+    } finally {
+      await asUser(null);
+    }
+  });
+
+  it("ignora el precio negociado si el usuario no es vendedor", async () => {
+    await asUser(OTHER_USER_ID);
+    try {
+      const result = await createRequest({
+        kind: "cotizacion",
+        items: [{ productId: "lampara-solar-1200w", quantity: 1, unitPrice: 10 }],
+      });
+
+      expect(result.items[0]?.unitPrice).toBe(55);
+      expect(result.items[0]?.catalogPrice).toBe(55);
+      expect(result.total).toBe(55);
+    } finally {
+      await asUser(null);
+    }
+  });
+
+  it("ignora precios negociados fuera de rango", async () => {
+    await asUser(SELLER_ID);
+    try {
+      const low = await createRequest({
+        kind: "cotizacion",
+        items: [{ productId: "lampara-solar-1200w", quantity: 1, unitPrice: 0 }],
+      });
+      expect(low.items[0]?.unitPrice).toBe(55);
+
+      const high = await createRequest({
+        kind: "cotizacion",
+        items: [{ productId: "lampara-solar-1200w", quantity: 1, unitPrice: 999999 }],
+      });
+      expect(high.items[0]?.unitPrice).toBe(55);
+
+      const negative = await createRequest({
+        kind: "cotizacion",
+        items: [{ productId: "lampara-solar-1200w", quantity: 1, unitPrice: -5 }],
+      });
+      expect(negative.items[0]?.unitPrice).toBe(55);
+
+      const huge = await createRequest({
+        kind: "cotizacion",
+        items: [{ productId: "lampara-solar-1200w", quantity: 1, unitPrice: 1e30 }],
+      });
+      expect(huge.items[0]?.unitPrice).toBe(55);
+    } finally {
+      await asUser(null);
+    }
   });
 
   it("usa el prefijo PED y acumula varias líneas", async () => {
